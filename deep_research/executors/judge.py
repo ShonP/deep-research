@@ -125,8 +125,7 @@ class ResearchLoopExecutor(Executor):
 
     async def _judge_completeness(self, state: ResearchState) -> bool:
         """Evaluate whether research is complete or has gaps."""
-        from agent_framework import Agent
-        from agent_framework.openai import OpenAIChatClient
+        from agent_framework.github import GitHubCopilotAgent
 
         findings_text = "\n\n".join(
             f"### {f.topic}\n{f.summary}" for f in state.findings
@@ -140,8 +139,7 @@ class ResearchLoopExecutor(Executor):
             "Set complete=true if findings are comprehensive. "
             "Set complete=false and list specific gaps if important areas are missing."
         )
-        agent = Agent(
-            client=OpenAIChatClient(),
+        agent = GitHubCopilotAgent(
             name="JudgeAgent",
             instructions="You evaluate research completeness. Respond only with JSON.",
         )

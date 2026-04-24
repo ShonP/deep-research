@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import click
-from dotenv import load_dotenv
 
 
 @click.command()
@@ -30,8 +29,6 @@ def main(query: str, max_rounds: int, output: str) -> None:
     Example:
         deep-research 'How to create compelling manga' --max-rounds 3 -o report.md
     """
-    load_dotenv()
-
     from deep_research.workflow import run_research
 
     run_research(query, max_rounds=max_rounds, output_path=output)

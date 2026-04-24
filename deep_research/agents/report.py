@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework.github import GitHubCopilotAgent
 
 
 SYSTEM_PROMPT = """\
@@ -27,8 +27,7 @@ Guidelines:
 
 def create_report_agent() -> Agent:
     """Create the report-compilation agent."""
-    return Agent(
-        client=OpenAIChatClient(),
+    return GitHubCopilotAgent(
         name="ReportAgent",
         instructions=SYSTEM_PROMPT,
     )

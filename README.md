@@ -18,13 +18,10 @@ StartExecutor → OutlineAgent → ResearchLoopExecutor → ReportAgent → Outp
 ## Setup
 
 ```bash
-# Set your OpenAI-compatible API key
-export OPENAI_API_KEY="your-key"
-export OPENAI_BASE_URL="https://your-endpoint"  # optional
-# Or use a .env file
-
 uv sync
 ```
+
+Authentication is handled automatically via the GitHub Copilot SDK — no API keys needed.
 
 ## Usage
 

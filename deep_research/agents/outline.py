@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework.github import GitHubCopilotAgent
 
 
 SYSTEM_PROMPT = """\
@@ -29,8 +29,7 @@ best practices, pitfalls, etc.).
 
 def create_outline_agent() -> Agent:
     """Create the outline-generation agent."""
-    return Agent(
-        client=OpenAIChatClient(),
+    return GitHubCopilotAgent(
         name="OutlineAgent",
         instructions=SYSTEM_PROMPT,
     )
