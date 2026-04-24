@@ -14,9 +14,15 @@ def build_research_workflow(
     query: str,
     max_rounds: int = 3,
     output_path: str = "report.md",
+    research_base_dir: str = "reports",
 ):
     """Build and return a MAF Workflow for deep research."""
-    start = StartExecutor(query=query, max_rounds=max_rounds, output_path=output_path)
+    start = StartExecutor(
+        query=query,
+        max_rounds=max_rounds,
+        output_path=output_path,
+        research_base_dir=research_base_dir,
+    )
     research_loop = ResearchLoopExecutor()
     report = ReportExecutor()
     output = OutputExecutor()
@@ -33,9 +39,10 @@ def run_research(
     *,
     max_rounds: int = 3,
     output_path: str = "report.md",
+    research_base_dir: str = "reports",
 ) -> None:
     """Synchronous entrypoint: build workflow and run to completion."""
-    workflow = build_research_workflow(query, max_rounds, output_path)
+    workflow = build_research_workflow(query, max_rounds, output_path, research_base_dir)
 
     async def _drive() -> None:
         # Start message is just a trigger string

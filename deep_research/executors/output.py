@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 
 from agent_framework import Executor, handler
 
 from deep_research.agents.report import create_report_agent
 from deep_research.models.state import ResearchState
+from deep_research.utils import save_json, save_text
 
 
 class ReportExecutor(Executor):
@@ -38,16 +40,35 @@ class ReportExecutor(Executor):
 
 
 class OutputExecutor(Executor):
-    """Writes the final report to a file."""
+    """Writes the final report and metadata to files."""
 
     def __init__(self) -> None:
         super().__init__(id="output")
 
     @handler(input=ResearchState, workflow_output=ResearchState)
     async def run(self, state, ctx) -> None:
+        # Write to the -o output path
         path = state.output_path
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(state.report)
+        save_text(path, state.report)
         print(f"\n✅ Report written to {path}")
+
+        # Save artifacts to the research directory
+        if state.research_dir:
+            report_path = os.path.join(state.research_dir, "report.md")
+            save_text(report_path, state.report)
+
+            finished_at = datetime.now(timezone.utc).isoformat()
+            meta = {
+                "query": state.query,
+                "started_at": state.started_at,
+                "finished_at": finished_at,
+                "max_rounds": state.max_rounds,
+                "topics_count": len(state.outline),
+                "findings_count": len(state.findings),
+            }
+            save_json(os.path.join(state.research_dir, "meta.json"), meta)
+
+            print(f"   All artifacts saved to: {state.research_dir}")
+
         await ctx.yield_output(state)

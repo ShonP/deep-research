@@ -20,7 +20,13 @@ import click
     show_default=True,
     help="Output file path for the research report.",
 )
-def main(query: str, max_rounds: int, output: str) -> None:
+@click.option(
+    "--research-dir",
+    default="reports",
+    show_default=True,
+    help="Base directory for research artifacts.",
+)
+def main(query: str, max_rounds: int, output: str, research_dir: str) -> None:
     """Run deep research on a QUERY topic.
 
     Performs multi-round iterative web research using AI agents and
@@ -31,7 +37,7 @@ def main(query: str, max_rounds: int, output: str) -> None:
     """
     from deep_research.workflow import run_research
 
-    run_research(query, max_rounds=max_rounds, output_path=output)
+    run_research(query, max_rounds=max_rounds, output_path=output, research_base_dir=research_dir)
 
 
 if __name__ == "__main__":
