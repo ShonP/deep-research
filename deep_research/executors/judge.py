@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import json
+import os
+from datetime import datetime, timezone
 
 from agent_framework import Executor, handler
 
 from deep_research.agents.outline import create_outline_agent
 from deep_research.agents.research import create_research_agent
-from deep_research.models.state import Finding, ResearchState, ResearchTopic
+from deep_research.models.state import Finding, ResearchState, ResearchTopic, SourceRecord
+from deep_research.utils import extract_urls, save_json
 
 
 class ResearchLoopExecutor(Executor):
@@ -20,6 +23,7 @@ class ResearchLoopExecutor(Executor):
     async def run(self, state, ctx) -> None:
         # Step 1: Generate outline
         await self._generate_outline(state)
+        self._save_outline(state)
 
         # Step 2: Iterative research loop
         while state.current_round < state.max_rounds:
@@ -32,6 +36,8 @@ class ResearchLoopExecutor(Executor):
                 break
 
             await self._research_topics(state, topics_to_research)
+            self._save_findings(state)
+            self._save_sources(state)
 
             # Judge completeness (skip on last possible round)
             if state.current_round < state.max_rounds:
@@ -63,6 +69,7 @@ class ResearchLoopExecutor(Executor):
 
         try:
             data = json.loads(text)
+            state.outline_data = data
             topics = data.get("topics", [])
             for t in topics:
                 state.outline.append(
@@ -83,6 +90,15 @@ class ResearchLoopExecutor(Executor):
                     description=f"General research on: {state.query}",
                 )
             )
+            state.outline_data = {
+                "topics": [
+                    {
+                        "title": state.query,
+                        "description": f"General research on: {state.query}",
+                        "subtopics": [],
+                    }
+                ]
+            }
 
     def _get_topics_for_round(self, state: ResearchState) -> list[str]:
         """Determine which topics to research this round."""
@@ -110,17 +126,33 @@ class ResearchLoopExecutor(Executor):
             try:
                 result = await agent.run(prompt, options={'timeout': 300})
                 summary = result.text or "(no response)"
-                # Extract findings
-                state.findings.append(
-                    Finding(
-                        topic=topic,
-                        summary=summary,
-                    )
+                finding = Finding(
+                    topic=topic,
+                    summary=summary,
+                    round_number=state.current_round,
                 )
+                state.findings.append(finding)
+
+                # Extract sources from the summary text
+                urls = extract_urls(summary)
+                now = datetime.now(timezone.utc).isoformat()
+                for url in urls:
+                    state.sources.append(
+                        SourceRecord(
+                            url=url,
+                            title="",
+                            fetched_at=now,
+                            query=topic,
+                        )
+                    )
             except Exception as e:
                 print(f"   ⚠️  Research failed for topic: {e}")
                 state.findings.append(
-                    Finding(topic=topic, summary=f"(research failed: {e})")
+                    Finding(
+                        topic=topic,
+                        summary=f"(research failed: {e})",
+                        round_number=state.current_round,
+                    )
                 )
 
     async def _judge_completeness(self, state: ResearchState) -> bool:
@@ -162,3 +194,53 @@ class ResearchLoopExecutor(Executor):
             # If parsing fails, assume complete
             state.gaps = []
             return False
+
+    def _save_outline(self, state: ResearchState) -> None:
+        """Save the outline data to outline.json."""
+        if not state.research_dir:
+            return
+        save_json(
+            os.path.join(state.research_dir, "outline.json"),
+            state.outline_data,
+        )
+
+    def _save_findings(self, state: ResearchState) -> None:
+        """Save accumulated findings grouped by round to findings.json."""
+        if not state.research_dir:
+            return
+        rounds: dict[int, list[dict]] = {}
+        for f in state.findings:
+            rnd = f.round_number
+            if rnd not in rounds:
+                rounds[rnd] = []
+            sources = extract_urls(f.summary)
+            rounds[rnd].append({
+                "topic": f.topic,
+                "summary": f.summary,
+                "sources": sources,
+            })
+        data = {
+            "rounds": [
+                {"round": rnd, "topics": topics}
+                for rnd, topics in sorted(rounds.items())
+            ]
+        }
+        save_json(os.path.join(state.research_dir, "findings.json"), data)
+
+    def _save_sources(self, state: ResearchState) -> None:
+        """Save all collected sources to sources.json."""
+        if not state.research_dir:
+            return
+        # Deduplicate by URL while preserving order
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for s in state.sources:
+            if s.url not in seen:
+                seen.add(s.url)
+                unique.append({
+                    "url": s.url,
+                    "title": s.title,
+                    "fetched_at": s.fetched_at,
+                    "query": s.query,
+                })
+        save_json(os.path.join(state.research_dir, "sources.json"), unique)

@@ -21,6 +21,17 @@ class Finding:
     summary: str
     source_url: str = ""
     source_title: str = ""
+    round_number: int = 0
+
+
+@dataclass
+class SourceRecord:
+    """A URL encountered during research."""
+
+    url: str
+    title: str = ""
+    fetched_at: str = ""
+    query: str = ""
 
 
 @dataclass
@@ -36,3 +47,7 @@ class ResearchState:
     gaps: list[str] = field(default_factory=list)
     report: str = ""
     output_path: str = "report.md"
+    research_dir: str = ""
+    started_at: str = ""
+    sources: list[SourceRecord] = field(default_factory=list)
+    outline_data: dict = field(default_factory=dict)
