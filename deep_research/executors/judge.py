@@ -108,7 +108,7 @@ class ResearchLoopExecutor(Executor):
                 f"Context — this is part of a larger research project on: {state.query}"
             )
             try:
-                result = await agent.run(prompt)
+                result = await agent.run(prompt, options={'timeout': 300})
                 summary = result.text or "(no response)"
                 # Extract findings
                 state.findings.append(
@@ -143,7 +143,7 @@ class ResearchLoopExecutor(Executor):
             name="JudgeAgent",
             instructions="You evaluate research completeness. Respond only with JSON.",
         )
-        result = await agent.run(prompt)
+        result = await agent.run(prompt, options={'timeout': 300})
         text = (result.text or "").strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1] if "\n" in text else text[3:]

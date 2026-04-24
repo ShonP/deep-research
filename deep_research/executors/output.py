@@ -31,7 +31,7 @@ class ReportExecutor(Executor):
             "Include a Sources section at the end with all referenced URLs."
         )
         agent = create_report_agent()
-        result = await agent.run(prompt)
+        result = await agent.run(prompt, options={'timeout': 300})
         state.report = result.text or "(report generation failed)"
         print(f"   Report generated ({len(state.report)} characters)")
         await ctx.send_message(state)

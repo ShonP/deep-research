@@ -5,7 +5,7 @@ from agent_framework import Agent
 from agent_framework.github import GitHubCopilotAgent
 
 from deep_research.tools.search import web_search
-from deep_research.tools.fetch import web_fetch
+from deep_research.tools.fetch import fetch_page
 
 
 SYSTEM_PROMPT = """\
@@ -13,7 +13,7 @@ You are a thorough web researcher. You are given a research topic to investigate
 
 Your process:
 1. Use web_search to find relevant pages about the topic.
-2. Use web_fetch to read the most promising pages (pick 2-3 best results).
+2. Use fetch_page to read the most promising pages (pick 2-3 best results).
 3. Synthesize what you learn into a clear summary.
 
 Your final message MUST be a research summary that includes:
@@ -31,5 +31,5 @@ def create_research_agent() -> Agent:
     return GitHubCopilotAgent(
         name="ResearchAgent",
         instructions=SYSTEM_PROMPT,
-        tools=[web_search, web_fetch],
+        tools=[web_search, fetch_page],
     )
