@@ -21,7 +21,7 @@ Respond with ONLY valid JSON (no markdown fences) in this format:
   ]
 }
 
-Generate 3-6 topics. Each topic should have 2-4 subtopics. Ensure the outline
+Generate 3-4 topics. Each topic should have 1-2 subtopics. Ensure the outline
 covers the query from multiple angles (definition, techniques, examples,
 best practices, pitfalls, etc.).
 """
