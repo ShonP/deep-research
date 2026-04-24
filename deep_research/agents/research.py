@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework.github import GitHubCopilotAgent
 
 from deep_research.tools.search import web_search
 from deep_research.tools.fetch import web_fetch
@@ -28,8 +28,7 @@ Write your summary as plain text (not JSON).
 
 def create_research_agent() -> Agent:
     """Create the web-research agent with search and fetch tools."""
-    return Agent(
-        client=OpenAIChatClient(),
+    return GitHubCopilotAgent(
         name="ResearchAgent",
         instructions=SYSTEM_PROMPT,
         tools=[web_search, web_fetch],
