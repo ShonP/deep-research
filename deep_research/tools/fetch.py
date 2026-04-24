@@ -8,7 +8,7 @@ from agent_framework import tool
 
 
 @tool
-def web_fetch(
+def fetch_page(
     url: Annotated[str, "The URL of the web page to fetch and extract text from"],
 ) -> str:
     """Fetch a web page and extract its main text content."""
