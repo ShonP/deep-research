@@ -25,9 +25,41 @@ Guidelines:
 """
 
 
-def create_report_agent() -> Agent:
-    """Create the report-compilation agent."""
+GITHUB_REPORT_PROMPT = """\
+You are a technical report writer specializing in open-source software analysis.
+You receive research findings from GitHub repository analysis and must compile
+them into a structured markdown report.
+
+Your report should include:
+1. A title (# heading)
+2. An executive summary of the landscape
+3. **Repository Overview** — How 3-5 key repos solve this problem, with stars,
+   language, and links
+4. **Code Patterns & Architecture** — Specific implementation patterns found,
+   with code snippets (use fenced code blocks)
+5. **Comparison** — Pros/cons table or comparison of different approaches found
+6. **Community Insights** — Key discussions, common issues, and solutions from
+   GitHub issues
+7. A "Sources" section with links to specific repos, files, and issues
+
+Guidelines:
+- Use markdown formatting (headings, tables, code blocks)
+- Include direct links to repos, files, and issues
+- Show actual code snippets when available
+- Compare approaches rather than just listing them
+- Focus on practical, actionable insights
+"""
+
+
+def create_report_agent(source: str = "web") -> Agent:
+    """Create the report-compilation agent.
+
+    Args:
+        source: Research source mode — 'web', 'github', or 'both'.
+                Uses GitHub-optimized prompt for 'github' and 'both'.
+    """
+    prompt = GITHUB_REPORT_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
     return GitHubCopilotAgent(
         name="ReportAgent",
-        instructions=SYSTEM_PROMPT,
+        instructions=prompt,
     )

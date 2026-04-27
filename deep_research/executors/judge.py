@@ -9,8 +9,31 @@ from agent_framework import Executor, handler
 
 from deep_research.agents.outline import create_outline_agent
 from deep_research.agents.research import create_research_agent
+from deep_research.agents.github_research import create_github_research_agent
 from deep_research.models.state import Finding, ResearchState, ResearchTopic, SourceRecord
 from deep_research.utils import extract_urls, save_json
+
+
+GITHUB_OUTLINE_INSTRUCTIONS = """\
+You are a research planner specializing in open-source software discovery. Given a
+research query, produce a structured outline of topics optimized for searching
+GitHub repositories, code patterns, and issue discussions.
+
+Respond with ONLY valid JSON (no markdown fences) in this format:
+{
+  "topics": [
+    {
+      "title": "Topic title",
+      "description": "What to search for on GitHub — frame as code/repo search queries",
+      "subtopics": ["specific pattern to find", "alternative approach to search"]
+    }
+  ]
+}
+
+Generate 3-4 topics. Frame descriptions as things to search for in code and repos,
+e.g. "Find repos implementing X", "Search for code patterns using Y library",
+"Look for issues discussing Z trade-offs".
+"""
 
 
 class ResearchLoopExecutor(Executor):
@@ -55,6 +78,13 @@ class ResearchLoopExecutor(Executor):
         """Use the OutlineAgent to create a research outline."""
         print("\n📋 Generating research outline...")
         agent = create_outline_agent()
+        if state.source in ("github", "both"):
+            # Override instructions for GitHub-optimized outline
+            from agent_framework.github import GitHubCopilotAgent
+            agent = GitHubCopilotAgent(
+                name="OutlineAgent",
+                instructions=GITHUB_OUTLINE_INSTRUCTIONS,
+            )
         result = await agent.run(
             f"Create a research outline for: {state.query}"
         )
@@ -115,45 +145,59 @@ class ResearchLoopExecutor(Executor):
             return [f"Fill knowledge gap: {gap}" for gap in state.gaps]
 
     async def _research_topics(self, state: ResearchState, topics: list[str]) -> None:
-        """Run the ResearchAgent on each topic."""
+        """Run the research agent(s) on each topic based on source mode."""
         for i, topic in enumerate(topics, 1):
             print(f"   🔍 [{i}/{len(topics)}] Researching: {topic[:80]}...")
-            agent = create_research_agent()
             prompt = (
                 f"Research the following topic thoroughly:\n\n{topic}\n\n"
                 f"Context — this is part of a larger research project on: {state.query}"
             )
-            try:
-                result = await agent.run(prompt, options={'timeout': 300})
-                summary = result.text or "(no response)"
-                finding = Finding(
+
+            if state.source == "web":
+                await self._run_agent(state, topic, prompt, create_research_agent)
+            elif state.source == "github":
+                await self._run_agent(state, topic, prompt, create_github_research_agent)
+            else:  # both
+                await self._run_agent(state, topic, prompt, create_research_agent, label="web")
+                await self._run_agent(state, topic, prompt, create_github_research_agent, label="github")
+
+    async def _run_agent(
+        self,
+        state: ResearchState,
+        topic: str,
+        prompt: str,
+        agent_factory,
+        label: str = "",
+    ) -> None:
+        """Run a single research agent and record findings."""
+        if label:
+            print(f"      [{label}]")
+        try:
+            agent = agent_factory()
+            result = await agent.run(prompt, options={"timeout": 300})
+            summary = result.text or "(no response)"
+            finding = Finding(
+                topic=topic if not label else f"[{label}] {topic}",
+                summary=summary,
+                round_number=state.current_round,
+            )
+            state.findings.append(finding)
+
+            urls = extract_urls(summary)
+            now = datetime.now(timezone.utc).isoformat()
+            for url in urls:
+                state.sources.append(
+                    SourceRecord(url=url, title="", fetched_at=now, query=topic)
+                )
+        except Exception as e:
+            print(f"   ⚠️  Research failed for topic: {e}")
+            state.findings.append(
+                Finding(
                     topic=topic,
-                    summary=summary,
+                    summary=f"(research failed: {e})",
                     round_number=state.current_round,
                 )
-                state.findings.append(finding)
-
-                # Extract sources from the summary text
-                urls = extract_urls(summary)
-                now = datetime.now(timezone.utc).isoformat()
-                for url in urls:
-                    state.sources.append(
-                        SourceRecord(
-                            url=url,
-                            title="",
-                            fetched_at=now,
-                            query=topic,
-                        )
-                    )
-            except Exception as e:
-                print(f"   ⚠️  Research failed for topic: {e}")
-                state.findings.append(
-                    Finding(
-                        topic=topic,
-                        summary=f"(research failed: {e})",
-                        round_number=state.current_round,
-                    )
-                )
+            )
 
     async def _judge_completeness(self, state: ResearchState) -> bool:
         """Evaluate whether research is complete or has gaps."""
@@ -162,10 +206,22 @@ class ResearchLoopExecutor(Executor):
         findings_text = "\n\n".join(
             f"### {f.topic}\n{f.summary}" for f in state.findings
         )
+
+        if state.source in ("github", "both"):
+            eval_criteria = (
+                "Evaluate whether we found enough real-world implementations.\n"
+                "Consider: Did we find diverse repos? Do we have actual code snippets?\n"
+                "Are architecture patterns clear? Did we find relevant discussions?"
+            )
+        else:
+            eval_criteria = (
+                "Evaluate these findings. Are there significant knowledge gaps?"
+            )
+
         prompt = (
             f"Original research query: {state.query}\n\n"
             f"Research findings so far:\n{findings_text}\n\n"
-            "Evaluate these findings. Are there significant knowledge gaps?\n"
+            f"{eval_criteria}\n"
             "Respond with ONLY valid JSON (no markdown fences):\n"
             '{"complete": true/false, "gaps": ["gap description 1", ...]}\n'
             "Set complete=true if findings are comprehensive. "

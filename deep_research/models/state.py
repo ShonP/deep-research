@@ -45,6 +45,7 @@ class ResearchState:
     findings: list[Finding] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
+    source: str = "web"
     report: str = ""
     output_path: str = "report.md"
     research_dir: str = ""
