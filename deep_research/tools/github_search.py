@@ -3,17 +3,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import Annotated
-
-from agent_framework import tool
 
 
-@tool
-def github_search(
-    query: Annotated[str, "Search query"],
-    mode: Annotated[str, "Search mode: code, repos, or issues"] = "code",
-    max_results: Annotated[int, "Max results"] = 5,
-) -> str:
+def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
     """Search GitHub for code, repositories, or issues using the gh CLI."""
     endpoint_map = {
         "code": "search/code",
