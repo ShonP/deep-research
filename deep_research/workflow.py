@@ -16,69 +16,152 @@ from deep_research.utils import create_research_dir, extract_urls, load_env, sav
 
 
 def run_research(
-    query: str,
+    query: str | None = None,
     *,
     max_rounds: int = 3,
     output_path: str = "report.md",
     research_base_dir: str = "reports",
     source: str = "web",
+    resume: str | None = None,
 ) -> None:
-    """Run the full research pipeline synchronously."""
+    """Run the full research pipeline synchronously.
+
+    When *resume* is the path to an existing research directory that contains
+    a ``checkpoint.json``, the pipeline picks up where it left off instead of
+    starting from scratch.
+    """
     load_env()
     run_id = new_run_id()
 
-    research_dir = create_research_dir(query, research_base_dir)
-    attach_file_handler(research_dir)
-    started_at = datetime.now(timezone.utc).isoformat()
+    if resume:
+        # ---- Resume mode ----
+        checkpoint = _load_checkpoint(resume)
+        if not checkpoint:
+            raise FileNotFoundError(f"No checkpoint.json found in {resume}")
 
-    state = ResearchState(
-        query=query,
-        max_rounds=max_rounds,
-        source=source,
-        output_path=output_path,
-        research_dir=research_dir,
-        started_at=started_at,
-    )
+        step = checkpoint["step"]
+        if step == "done":
+            log.info("Research already complete in %s", resume)
+            return
 
-    source_label = {"web": "🌐 Web", "github": "🐙 GitHub", "both": "🌐+🐙 Web & GitHub"}
-    log.info("Starting deep research: %s", state.query)
-    log.info("Source: %s | Max rounds: %d | Run: %s", source_label.get(state.source, state.source), state.max_rounds, run_id)
-    log.info("Research artifacts: %s", research_dir)
+        research_dir = resume
+        attach_file_handler(research_dir)
+        state = _reconstruct_state(checkpoint, research_dir)
+
+        completed_topics: set[str] = set(checkpoint.get("completed_topics", []))
+        total_topics: list[str] = checkpoint.get("total_topics", [])
+
+        log.info("Resuming research: %s", state.query)
+        log.info(
+            "Resume from step '%s', round %d, %d topics completed",
+            step,
+            state.current_round,
+            len(completed_topics),
+        )
+        log.info("Research artifacts: %s", research_dir)
+    else:
+        # ---- Normal mode ----
+        if not query:
+            raise ValueError("Query is required when not resuming")
+
+        research_dir = create_research_dir(query, research_base_dir)
+        attach_file_handler(research_dir)
+        started_at = datetime.now(timezone.utc).isoformat()
+
+        state = ResearchState(
+            query=query,
+            max_rounds=max_rounds,
+            source=source,
+            output_path=output_path,
+            research_dir=research_dir,
+            started_at=started_at,
+        )
+
+        step = None
+        completed_topics = set()
+        total_topics = []
+
+        source_label = {"web": "🌐 Web", "github": "🐙 GitHub", "both": "🌐+🐙 Web & GitHub"}
+        log.info("Starting deep research: %s", state.query)
+        log.info("Source: %s | Max rounds: %d | Run: %s", source_label.get(state.source, state.source), state.max_rounds, run_id)
+        log.info("Research artifacts: %s", research_dir)
 
     try:
         # Step 1: Generate outline
-        _generate_outline(state)
-        _save_outline(state)
+        if step is None:
+            _generate_outline(state)
+            _save_outline(state)
+            _save_checkpoint(state, "outline")
 
         # Step 2: Iterative research loop
-        while state.current_round < state.max_rounds:
-            state.current_round += 1
-            log.info("Research round %d/%d", state.current_round, state.max_rounds)
+        # Handle mid-round resume: finish the in-progress round first.
+        skip_loop = False
 
-            topics = _get_topics_for_round(state)
-            if not topics:
-                log.info("No topics to research, finishing.")
-                break
-
-            _research_topics(state, topics)
+        if step == "research":
+            _research_topics(state, total_topics, completed=completed_topics)
             _save_findings(state)
             _save_sources(state)
 
-            # Judge completeness (skip on last round)
             if state.current_round < state.max_rounds:
                 has_gaps = _judge_completeness(state)
+                _save_checkpoint(state, "judge")
                 if not has_gaps:
                     log.info("Research is comprehensive, moving to report.")
-                    break
-                log.info("Found %d gaps, continuing research...", len(state.gaps))
+                    skip_loop = True
+                else:
+                    log.info("Found %d gaps, continuing research...", len(state.gaps))
             else:
                 log.info("Max rounds reached, moving to report.")
+                skip_loop = True
+
+        if step == "judge":
+            if not state.gaps:
+                log.info("Research is comprehensive (from checkpoint), moving to report.")
+                skip_loop = True
+            else:
+                log.info("Resuming with %d gaps from previous round...", len(state.gaps))
+
+        if not skip_loop and step != "report":
+            while state.current_round < state.max_rounds:
+                state.current_round += 1
+                log.info("Research round %d/%d", state.current_round, state.max_rounds)
+
+                topics = _get_topics_for_round(state)
+                if not topics:
+                    log.info("No topics to research, finishing.")
+                    break
+
+                _research_topics(state, topics)
+                _save_findings(state)
+                _save_sources(state)
+
+                # Judge completeness (skip on last round)
+                if state.current_round < state.max_rounds:
+                    has_gaps = _judge_completeness(state)
+                    _save_checkpoint(state, "judge")
+                    if not has_gaps:
+                        log.info("Research is comprehensive, moving to report.")
+                        break
+                    log.info("Found %d gaps, continuing research...", len(state.gaps))
+                else:
+                    log.info("Max rounds reached, moving to report.")
 
         # Step 3: Generate report
-        _compile_report(state)
+        if step == "report":
+            report_path = os.path.join(state.research_dir, "report.md")
+            if os.path.exists(report_path):
+                with open(report_path, encoding="utf-8") as f:
+                    state.report = f.read()
+                log.info("Report loaded from checkpoint (%d chars)", len(state.report))
+            else:
+                _compile_report(state)
+        else:
+            _compile_report(state)
+            _save_checkpoint(state, "report")
 
         # Step 4: Save output
         _save_output(state)
+        _cleanup_checkpoint(state)
     except Exception:
         log.exception("Research pipeline failed")
         raise
@@ -155,9 +238,16 @@ def _get_topics_for_round(state: ResearchState) -> list[str]:
         return [f"Fill knowledge gap: {gap}" for gap in state.gaps]
 
 
-def _research_topics(state: ResearchState, topics: list[str]) -> None:
+def _research_topics(
+    state: ResearchState, topics: list[str], completed: set[str] | None = None
+) -> None:
     """Run the appropriate research agent on each topic."""
+    all_completed: set[str] = set(completed) if completed else set()
     for i, topic in enumerate(topics, 1):
+        if topic in all_completed:
+            log.info("[%d/%d] Skipping (already completed): %s", i, len(topics), topic[:60])
+            continue
+
         log.info("[%d/%d] Researching: %s", i, len(topics), topic[:80])
 
         if state.source == "web":
@@ -171,6 +261,13 @@ def _research_topics(state: ResearchState, topics: list[str]) -> None:
         # Save incrementally after each topic
         _save_findings(state)
         _save_sources(state)
+
+        all_completed.add(topic)
+        _save_checkpoint(
+            state, "research",
+            completed_topics=list(all_completed),
+            total_topics=topics,
+        )
 
 
 def _run_research(
@@ -362,3 +459,116 @@ def _save_sources(state: ResearchState) -> None:
             })
     save_json(os.path.join(state.research_dir, "sources.json"), unique)
     log.debug("Saved sources.json (%d unique sources)", len(unique))
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint helpers
+# ---------------------------------------------------------------------------
+
+
+def _save_checkpoint(
+    state: ResearchState,
+    step: str,
+    completed_topics: list[str] | None = None,
+    total_topics: list[str] | None = None,
+) -> None:
+    """Persist a checkpoint so the pipeline can resume after interruption."""
+    if not state.research_dir:
+        return
+    checkpoint = {
+        "step": step,
+        "query": state.query,
+        "source": state.source,
+        "max_rounds": state.max_rounds,
+        "current_round": state.current_round,
+        "output_path": state.output_path,
+        "started_at": state.started_at,
+        "completed_topics": completed_topics or [],
+        "total_topics": total_topics or [],
+        "outline_data": state.outline_data,
+        "gaps": state.gaps,
+    }
+    save_json(os.path.join(state.research_dir, "checkpoint.json"), checkpoint)
+    log.debug("Checkpoint saved: step=%s", step)
+
+
+def _load_checkpoint(research_dir: str) -> dict | None:
+    """Load a checkpoint from *research_dir*, or return ``None``."""
+    path = os.path.join(research_dir, "checkpoint.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
+def _cleanup_checkpoint(state: ResearchState) -> None:
+    """Remove checkpoint.json after successful completion."""
+    if not state.research_dir:
+        return
+    path = os.path.join(state.research_dir, "checkpoint.json")
+    if os.path.exists(path):
+        os.remove(path)
+        log.debug("Checkpoint cleaned up")
+
+
+def _reconstruct_state(checkpoint: dict, research_dir: str) -> ResearchState:
+    """Rebuild *ResearchState* from a checkpoint and saved artifact files."""
+    state = ResearchState(
+        query=checkpoint["query"],
+        max_rounds=checkpoint.get("max_rounds", 3),
+        current_round=checkpoint.get("current_round", 0),
+        source=checkpoint.get("source", "web"),
+        output_path=checkpoint.get("output_path", "report.md"),
+        research_dir=research_dir,
+        started_at=checkpoint.get("started_at", ""),
+        outline_data=checkpoint.get("outline_data", {}),
+        gaps=checkpoint.get("gaps", []),
+    )
+
+    # Rebuild outline from outline.json
+    outline_path = os.path.join(research_dir, "outline.json")
+    if os.path.exists(outline_path):
+        with open(outline_path, encoding="utf-8") as f:
+            outline_data = json.load(f)
+        state.outline_data = outline_data
+        for t in outline_data.get("topics", []):
+            state.outline.append(
+                ResearchTopic(
+                    title=t["title"],
+                    description=t.get("description", ""),
+                    subtopics=t.get("subtopics", []),
+                )
+            )
+
+    # Rebuild findings from findings.json
+    findings_path = os.path.join(research_dir, "findings.json")
+    if os.path.exists(findings_path):
+        with open(findings_path, encoding="utf-8") as f:
+            findings_data = json.load(f)
+        for rnd in findings_data.get("rounds", []):
+            round_num = rnd.get("round", 0)
+            for t in rnd.get("topics", []):
+                state.findings.append(
+                    Finding(
+                        topic=t["topic"],
+                        summary=t["summary"],
+                        round_number=round_num,
+                    )
+                )
+
+    # Rebuild sources from sources.json
+    sources_path = os.path.join(research_dir, "sources.json")
+    if os.path.exists(sources_path):
+        with open(sources_path, encoding="utf-8") as f:
+            sources_data = json.load(f)
+        for s in sources_data:
+            state.sources.append(
+                SourceRecord(
+                    url=s["url"],
+                    title=s.get("title", ""),
+                    fetched_at=s.get("fetched_at", ""),
+                    query=s.get("query", ""),
+                )
+            )
+
+    return state
