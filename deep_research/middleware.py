@@ -1,89 +1,100 @@
-"""MAF middleware: function-level caching, retry, logging + agent-level logging."""
+"""MAF middleware for logging, caching, and retry."""
 from __future__ import annotations
 
-import logging
+import asyncio
+import hashlib
+import json
 import time
-from collections.abc import Awaitable, Callable
+
+# Pre-import to avoid circular import in MAF 1.2.0
+import agent_framework._agents  # noqa: F401
 
 from agent_framework._middleware import (
-    AgentContext,
-    AgentMiddleware,
+    ChatContext,
     FunctionInvocationContext,
-    FunctionMiddleware,
+    chat_middleware,
+    function_middleware,
 )
 
-logger = logging.getLogger(__name__)
+from deep_research.log import log
+
+# ---------------------------------------------------------------------------
+# Chat middleware — logs every LLM round-trip
+# ---------------------------------------------------------------------------
 
 
-class CachingMiddleware(FunctionMiddleware):
-    """Cache function results keyed by function name + arguments."""
+@chat_middleware
+async def llm_call_logging(context: ChatContext, next_handler):
+    msg_count = len(context.messages) if context.messages else 0
+    log.info("LLM call starting: %d messages", msg_count)
+    start = time.monotonic()
+    try:
+        await next_handler()
+        elapsed = (time.monotonic() - start) * 1000
+        result = context.result
+        text = getattr(result, "text", None) or ""
+        log.info("LLM call OK in %.0fms, response %d chars", elapsed, len(text))
+    except Exception as e:
+        elapsed = (time.monotonic() - start) * 1000
+        log.error("LLM call FAILED after %.0fms: %s", elapsed, e)
+        raise
 
-    def __init__(self) -> None:
-        self.cache: dict[str, object] = {}
 
-    async def process(
-        self,
-        context: FunctionInvocationContext,
-        call_next: Callable[[], Awaitable[None]],
-    ) -> None:
-        cache_key = f"{context.function.name}:{context.arguments}"
-        if cache_key in self.cache:
-            context.result = self.cache[cache_key]
+# ---------------------------------------------------------------------------
+# Function middleware — tool call logging with timing
+# ---------------------------------------------------------------------------
+
+
+@function_middleware
+async def tool_call_logging(context: FunctionInvocationContext, next_handler):
+    log.info("Tool call: %s(%s)", context.function.name, str(context.arguments)[:200])
+    start = time.monotonic()
+    try:
+        await next_handler()
+    except Exception as e:
+        elapsed = (time.monotonic() - start) * 1000
+        log.error("Tool %s FAILED after %.0fms: %s", context.function.name, elapsed, e)
+        raise
+    elapsed = (time.monotonic() - start) * 1000
+    result_str = str(context.result) if context.result is not None else ""
+    log.info("Tool %s returned %d chars in %.0fms", context.function.name, len(result_str), elapsed)
+
+
+# ---------------------------------------------------------------------------
+# Function middleware — cache tool results
+# ---------------------------------------------------------------------------
+
+_cache: dict[str, str] = {}
+
+
+@function_middleware
+async def caching(context: FunctionInvocationContext, next_handler):
+    global _cache
+    key = hashlib.md5(
+        f"{context.function.name}:{json.dumps(context.arguments, sort_keys=True)}".encode()
+    ).hexdigest()
+    if key in _cache:
+        log.debug("Cache hit: %s", context.function.name)
+        context.result = _cache[key]
+        return
+    await next_handler()
+    if context.result is not None:
+        _cache[key] = context.result
+
+
+# ---------------------------------------------------------------------------
+# Function middleware — retry failed tool calls
+# ---------------------------------------------------------------------------
+
+
+@function_middleware
+async def retry(context: FunctionInvocationContext, next_handler):
+    for attempt in range(3):
+        try:
+            await next_handler()
             return
-        await call_next()
-        if context.result is not None:
-            self.cache[cache_key] = context.result
-
-
-class RetryMiddleware(FunctionMiddleware):
-    """Retry failed function invocations up to max_retries times."""
-
-    def __init__(self, max_retries: int = 2) -> None:
-        self.max_retries = max_retries
-
-    async def process(
-        self,
-        context: FunctionInvocationContext,
-        call_next: Callable[[], Awaitable[None]],
-    ) -> None:
-        last_exc: Exception | None = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                await call_next()
-                return
-            except Exception as exc:
-                last_exc = exc
-                logger.warning("Tool %s attempt %d failed: %s", context.function.name, attempt, exc)
-        if last_exc is not None:
-            raise last_exc
-
-
-class LoggingMiddleware(FunctionMiddleware):
-    """Log function invocations with timing."""
-
-    async def process(
-        self,
-        context: FunctionInvocationContext,
-        call_next: Callable[[], Awaitable[None]],
-    ) -> None:
-        start = time.perf_counter()
-        logger.info("Calling tool %s", context.function.name)
-        await call_next()
-        elapsed = time.perf_counter() - start
-        logger.info("Tool %s completed in %.2fs", context.function.name, elapsed)
-
-
-class AgentLoggingMiddleware(AgentMiddleware):
-    """Log agent invocations with timing."""
-
-    async def process(
-        self,
-        context: AgentContext,
-        call_next: Callable[[], Awaitable[None]],
-    ) -> None:
-        agent_name = getattr(context.agent, "name", "unknown")
-        start = time.perf_counter()
-        logger.info("Agent %s invoked", agent_name)
-        await call_next()
-        elapsed = time.perf_counter() - start
-        logger.info("Agent %s completed in %.2fs", agent_name, elapsed)
+        except Exception as e:
+            if attempt == 2:
+                raise
+            log.warning("Tool %s failed (attempt %d/3): %s", context.function.name, attempt + 1, e)
+            await asyncio.sleep(2**attempt)

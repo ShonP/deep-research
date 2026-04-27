@@ -4,6 +4,7 @@ from __future__ import annotations
 from agent_framework._agents import Agent
 
 from deep_research.client import get_chat_client
+from deep_research.middleware import llm_call_logging
 
 SYSTEM_PROMPT = """\
 You are a research planner. Given a research query, produce a structured outline
@@ -15,7 +16,6 @@ Respond with ONLY valid JSON (no markdown fences) in this format:
     {
       "title": "Topic title",
       "description": "What to investigate",
-      "priority": "high|medium",
       "subtopics": ["subtopic 1"]
     }
   ]
@@ -39,7 +39,6 @@ Respond with ONLY valid JSON (no markdown fences) in this format:
     {
       "title": "Topic title",
       "description": "What to search for on GitHub",
-      "priority": "high|medium",
       "subtopics": ["specific pattern to find"]
     }
   ]
@@ -55,12 +54,12 @@ Rules:
 
 
 async def generate_outline(query: str, source: str = "web") -> str:
-    """Generate a research outline for the given query.
-
-    Returns the raw JSON string from the model.
-    """
     prompt = GITHUB_OUTLINE_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
-    agent = Agent(client=get_chat_client(), name="outline", instructions=prompt)
+    agent = Agent(
+        client=get_chat_client(),
+        name="outline-planner",
+        instructions=prompt,
+        middleware=[llm_call_logging],
+    )
     response = await agent.run(f"Create a research outline for: {query}")
     return response.text
-

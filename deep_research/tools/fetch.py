@@ -21,9 +21,6 @@ def fetch_page(url: str) -> str:
         )
         resp.raise_for_status()
         text = trafilatura.extract(resp.text) or ""
-        # Truncate to avoid exceeding context limits
-        if len(text) > 8000:
-            text = text[:8000] + "\n... [truncated]"
         return json.dumps({"url": url, "content": text or "(no extractable content)"})
     except Exception as e:
         return json.dumps({"url": url, "error": str(e)})
