@@ -23,17 +23,24 @@ def chat(
     system_prompt: str,
     user_message: str,
     *,
-    model: str = "gpt-4o",
-    temperature: float = 0.7,
+    model: str = "gpt-5.5",
+    temperature: float | None = None,
+    reasoning_effort: str = "medium",
 ) -> str:
     """Simple single-turn chat completion (no tools)."""
     client = get_client()
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
+    kwargs: dict = {
+        "model": model,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        temperature=temperature,
-    )
+    }
+    # Reasoning models use reasoning_effort, not temperature
+    if model.startswith(("gpt-5", "o1", "o3", "o4")):
+        kwargs["reasoning_effort"] = reasoning_effort
+        kwargs["max_completion_tokens"] = 16384
+    else:
+        kwargs["temperature"] = temperature if temperature is not None else 0.7
+    response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""

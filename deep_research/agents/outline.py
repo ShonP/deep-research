@@ -59,6 +59,6 @@ def generate_outline(query: str, source: str = "web") -> str:
     return chat(
         system_prompt=prompt,
         user_message=f"Create a research outline for: {query}",
-        temperature=0.4,
+        reasoning_effort="low",
     )
 

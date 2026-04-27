@@ -225,7 +225,7 @@ def _judge_completeness(state: ResearchState) -> bool:
     text = chat(
         system_prompt="You evaluate research completeness. Respond only with JSON.",
         user_message=prompt,
-        temperature=0.3,
+        reasoning_effort="low",
     )
 
     text = text.strip()
