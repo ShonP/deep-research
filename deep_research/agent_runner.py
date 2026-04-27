@@ -96,9 +96,9 @@ def run_agent(
     user_message: str,
     tools: list[str],
     *,
-    model: str = "gpt-4o",
+    model: str = "gpt-5.5",
     max_iterations: int = 15,
-    temperature: float = 0.7,
+    reasoning_effort: str = "medium",
 ) -> str:
     """Run a tool-calling agent loop until the model produces a final text answer.
 
@@ -122,12 +122,17 @@ def run_agent(
     ]
 
     for _ in range(max_iterations):
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            tools=tool_defs,
-            temperature=temperature,
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "tools": tool_defs,
+        }
+        if model.startswith(("gpt-5", "o1", "o3", "o4")):
+            kwargs["reasoning_effort"] = reasoning_effort
+            kwargs["max_completion_tokens"] = 16384
+        else:
+            kwargs["temperature"] = 0.7
+        response = client.chat.completions.create(**kwargs)
         choice = response.choices[0]
         msg = choice.message
 
