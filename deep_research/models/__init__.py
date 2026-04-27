@@ -1,3 +1,19 @@
-from deep_research.models.state import ResearchState, ResearchTopic, Finding
+from deep_research.models.state import (
+    Citation,
+    CriticFeedback,
+    Finding,
+    ResearchState,
+    ResearchTopic,
+    Source,
+    SourceRecord,
+)
 
-__all__ = ["ResearchState", "ResearchTopic", "Finding"]
+__all__ = [
+    "Citation",
+    "CriticFeedback",
+    "Finding",
+    "ResearchState",
+    "ResearchTopic",
+    "Source",
+    "SourceRecord",
+]

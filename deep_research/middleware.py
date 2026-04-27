@@ -1,10 +1,11 @@
-"""MAF middleware for logging, caching, and retry."""
+"""MAF middleware for logging, caching, retry, and token tracking."""
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import json
 import time
+from dataclasses import dataclass, field
 
 # Pre-import to avoid circular import in MAF 1.2.0
 import agent_framework._agents  # noqa: F401
@@ -18,8 +19,49 @@ from agent_framework._middleware import (
 
 from deep_research.log import log
 
+
 # ---------------------------------------------------------------------------
-# Chat middleware — logs every LLM round-trip
+# Token tracking
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class TokenUsage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+    def add(self, prompt: int, completion: int) -> None:
+        self.prompt_tokens += prompt
+        self.completion_tokens += completion
+        self.total_tokens += prompt + completion
+
+    def reset(self) -> None:
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.total_tokens = 0
+
+    def to_dict(self) -> dict:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+        }
+
+
+_token_usage = TokenUsage()
+
+
+def get_token_usage() -> TokenUsage:
+    return _token_usage
+
+
+def reset_token_usage() -> None:
+    _token_usage.reset()
+
+
+# ---------------------------------------------------------------------------
+# Chat middleware — logs every LLM round-trip + tracks tokens
 # ---------------------------------------------------------------------------
 
 
@@ -33,7 +75,17 @@ async def llm_call_logging(context: ChatContext, next_handler):
         elapsed = (time.monotonic() - start) * 1000
         result = context.result
         text = getattr(result, "text", None) or ""
-        log.info("LLM call OK in %.0fms, response %d chars", elapsed, len(text))
+        usage = getattr(result, "usage_details", None)
+        if usage:
+            p_tok = getattr(usage, "input_token_count", 0) or 0
+            c_tok = getattr(usage, "output_token_count", 0) or 0
+            _token_usage.add(p_tok, c_tok)
+            log.info(
+                "LLM call OK in %.0fms, %d chars, tokens: %d+%d",
+                elapsed, len(text), p_tok, c_tok,
+            )
+        else:
+            log.info("LLM call OK in %.0fms, response %d chars", elapsed, len(text))
     except Exception as e:
         elapsed = (time.monotonic() - start) * 1000
         log.error("LLM call FAILED after %.0fms: %s", elapsed, e)
