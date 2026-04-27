@@ -1,8 +1,9 @@
 """Outline agent: generates a structured research outline from a query."""
 from __future__ import annotations
 
-from deep_research.llm import chat
+from agent_framework._agents import Agent
 
+from deep_research.client import get_chat_client
 
 SYSTEM_PROMPT = """\
 You are a research planner. Given a research query, produce a structured outline
@@ -27,7 +28,6 @@ Rules:
 - Prioritize: what gives the most actionable insight?
 - Skip obvious/introductory topics — focus on what matters
 """
-
 
 GITHUB_OUTLINE_PROMPT = """\
 You are a research planner specializing in open-source software discovery. Given a
@@ -54,15 +54,13 @@ Rules:
 """
 
 
-def generate_outline(query: str, source: str = "web") -> str:
+async def generate_outline(query: str, source: str = "web") -> str:
     """Generate a research outline for the given query.
 
     Returns the raw JSON string from the model.
     """
     prompt = GITHUB_OUTLINE_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
-    return chat(
-        system_prompt=prompt,
-        user_message=f"Create a research outline for: {query}",
-        reasoning_effort="low",
-    )
+    agent = Agent(client=get_chat_client(), name="outline", instructions=prompt)
+    response = await agent.run(f"Create a research outline for: {query}")
+    return response.text
 
