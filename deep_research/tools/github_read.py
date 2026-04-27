@@ -1,4 +1,5 @@
 """GitHub file reader tool using the gh CLI."""
+
 from __future__ import annotations
 
 import base64
@@ -14,21 +15,26 @@ def github_read(repo: str, path: str, ref: str = "HEAD") -> str:
     try:
         result = subprocess.run(
             [
-                "gh", "api",
+                "gh",
+                "api",
                 f"repos/{repo}/contents/{path}",
-                "-X", "GET",
-                "-f", f"ref={ref}",
+                "-X",
+                "GET",
+                "-f",
+                f"ref={ref}",
             ],
             capture_output=True,
             text=True,
             timeout=30,
         )
         if result.returncode != 0:
-            return json.dumps({
-                "repo": repo,
-                "path": path,
-                "error": result.stderr.strip() or "gh CLI command failed",
-            })
+            return json.dumps(
+                {
+                    "repo": repo,
+                    "path": path,
+                    "error": result.stderr.strip() or "gh CLI command failed",
+                }
+            )
 
         data = json.loads(result.stdout)
         encoding = data.get("encoding", "")
@@ -39,15 +45,15 @@ def github_read(repo: str, path: str, ref: str = "HEAD") -> str:
         else:
             content = raw_content
 
-        # Truncate to avoid exceeding context limits
-
-        return json.dumps({
-            "repo": repo,
-            "path": path,
-            "url": data.get("html_url", ""),
-            "content": content,
-        })
+        return json.dumps(
+            {
+                "repo": repo,
+                "path": path,
+                "url": data.get("html_url", ""),
+                "content": content,
+            }
+        )
     except subprocess.TimeoutExpired:
         return json.dumps({"repo": repo, "path": path, "error": "Request timed out"})
-    except Exception as e:
+    except (subprocess.CalledProcessError, json.JSONDecodeError, OSError) as e:
         return json.dumps({"repo": repo, "path": path, "error": str(e)})

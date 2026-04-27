@@ -1,4 +1,5 @@
 """Web search tool using DuckDuckGo."""
+
 from __future__ import annotations
 
 import json
@@ -25,5 +26,5 @@ def web_search(query: str, max_results: int = 5) -> str:
             for r in results
         ]
         return json.dumps({"results": formatted})
-    except Exception as e:
+    except (json.JSONDecodeError, OSError) as e:
         return json.dumps({"error": str(e)})

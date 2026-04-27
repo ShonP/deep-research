@@ -1,4 +1,5 @@
 """GitHub research agent: investigates topics by searching GitHub repos, code, and issues."""
+
 from __future__ import annotations
 
 from agent_framework._agents import Agent

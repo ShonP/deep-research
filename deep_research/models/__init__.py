@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from deep_research.models.state import (
     Citation,
     CriticFeedback,

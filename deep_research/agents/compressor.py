@@ -1,4 +1,5 @@
 """Compressor agent: deduplicates and compresses research findings."""
+
 from __future__ import annotations
 
 import json
@@ -58,7 +59,8 @@ async def compress_findings(findings: list[dict], query: str) -> tuple[list[dict
 
 
 def _parse_compressed(
-    text: str, fallback: list[dict],
+    text: str,
+    fallback: list[dict],
 ) -> tuple[list[dict], list[str]]:
     text = text.strip()
     if text.startswith("```"):

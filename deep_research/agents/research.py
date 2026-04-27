@@ -1,4 +1,5 @@
 """Research agent: investigates a topic using web search and page fetching."""
+
 from __future__ import annotations
 
 from agent_framework._agents import Agent

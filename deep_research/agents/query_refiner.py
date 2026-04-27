@@ -1,4 +1,5 @@
 """Query refiner agent: generates optimized search queries for a research topic."""
+
 from __future__ import annotations
 
 import json
@@ -31,11 +32,7 @@ async def refine_queries(topic: str, context: str, max_queries: int = 3) -> list
         instructions=SYSTEM_PROMPT,
         middleware=[llm_call_logging],
     )
-    prompt = (
-        f"Research topic: {topic}\n"
-        f"Broader context: {context}\n"
-        f"Generate {max_queries} optimized search queries."
-    )
+    prompt = f"Research topic: {topic}\nBroader context: {context}\nGenerate {max_queries} optimized search queries."
     response = await agent.run(prompt)
     return _parse_queries(response.text, topic, max_queries)
 

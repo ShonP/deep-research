@@ -1,8 +1,9 @@
 """Supervisor agent: dispatches parallel research tasks with isolated contexts."""
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from deep_research.agents.github_research import github_research_topic
 from deep_research.agents.research import research_topic
@@ -58,7 +59,10 @@ async def _research_with_limit(
 
 
 async def _research_one(
-    topic: str, query: str, source: str, round_num: int,
+    topic: str,
+    query: str,
+    source: str,
+    round_num: int,
 ) -> dict:
     """Execute research for one topic. Each call creates fresh agent instances."""
     try:
@@ -73,16 +77,22 @@ async def _research_one(
             )
             summary = f"[web] {web}\n\n[github] {gh}"
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         urls = extract_urls(summary)
         sources = [{"url": u, "query": topic, "fetched_at": now} for u in urls]
         return {
-            "topic": topic, "summary": summary, "round": round_num,
-            "sources": sources, "error": None,
+            "topic": topic,
+            "summary": summary,
+            "round": round_num,
+            "sources": sources,
+            "error": None,
         }
     except Exception as e:
         log.error("Research failed for '%s': %s", topic[:60], e)
         return {
-            "topic": topic, "summary": f"(failed: {e})", "round": round_num,
-            "sources": [], "error": str(e),
+            "topic": topic,
+            "summary": f"(failed: {e})",
+            "round": round_num,
+            "sources": [],
+            "error": str(e),
         }

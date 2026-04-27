@@ -1,4 +1,5 @@
 """Outline agent: generates a structured research outline from a query."""
+
 from __future__ import annotations
 
 from agent_framework._agents import Agent

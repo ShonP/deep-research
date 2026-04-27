@@ -1,32 +1,31 @@
 """MAF middleware for logging, caching, retry, and token tracking."""
+
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from typing import Any
 
 # Pre-import to avoid circular import in MAF 1.2.0
 import agent_framework._agents  # noqa: F401
-
 from agent_framework._middleware import (
     ChatContext,
     FunctionInvocationContext,
     chat_middleware,
     function_middleware,
 )
+from pydantic import BaseModel
 
 from deep_research.log import log
-
 
 # ---------------------------------------------------------------------------
 # Token tracking
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class TokenUsage:
+class TokenUsage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -41,12 +40,8 @@ class TokenUsage:
         self.completion_tokens = 0
         self.total_tokens = 0
 
-    def to_dict(self) -> dict:
-        return {
-            "prompt_tokens": self.prompt_tokens,
-            "completion_tokens": self.completion_tokens,
-            "total_tokens": self.total_tokens,
-        }
+    def to_dict(self) -> dict[str, Any]:
+        return self.model_dump()
 
 
 _token_usage = TokenUsage()
@@ -66,7 +61,7 @@ def reset_token_usage() -> None:
 
 
 @chat_middleware
-async def llm_call_logging(context: ChatContext, next_handler):
+async def llm_call_logging(context: ChatContext, next_handler) -> None:
     msg_count = len(context.messages) if context.messages else 0
     log.info("LLM call starting: %d messages", msg_count)
     start = time.monotonic()
@@ -77,12 +72,15 @@ async def llm_call_logging(context: ChatContext, next_handler):
         text = getattr(result, "text", None) or ""
         usage = getattr(result, "usage_details", None)
         if usage:
-            p_tok = getattr(usage, "input_token_count", 0) or 0
-            c_tok = getattr(usage, "output_token_count", 0) or 0
+            p_tok = usage.get("input_token_count", 0) or 0
+            c_tok = usage.get("output_token_count", 0) or 0
             _token_usage.add(p_tok, c_tok)
             log.info(
                 "LLM call OK in %.0fms, %d chars, tokens: %d+%d",
-                elapsed, len(text), p_tok, c_tok,
+                elapsed,
+                len(text),
+                p_tok,
+                c_tok,
             )
         else:
             log.info("LLM call OK in %.0fms, response %d chars", elapsed, len(text))
@@ -98,7 +96,7 @@ async def llm_call_logging(context: ChatContext, next_handler):
 
 
 @function_middleware
-async def tool_call_logging(context: FunctionInvocationContext, next_handler):
+async def tool_call_logging(context: FunctionInvocationContext, next_handler) -> None:
     log.info("Tool call: %s(%s)", context.function.name, str(context.arguments)[:200])
     start = time.monotonic()
     try:
@@ -120,11 +118,9 @@ _cache: dict[str, str] = {}
 
 
 @function_middleware
-async def caching(context: FunctionInvocationContext, next_handler):
+async def caching(context: FunctionInvocationContext, next_handler) -> None:
     global _cache
-    key = hashlib.md5(
-        f"{context.function.name}:{json.dumps(context.arguments, sort_keys=True)}".encode()
-    ).hexdigest()
+    key = hashlib.md5(f"{context.function.name}:{json.dumps(context.arguments, sort_keys=True)}".encode()).hexdigest()
     if key in _cache:
         log.debug("Cache hit: %s", context.function.name)
         context.result = _cache[key]
@@ -140,7 +136,7 @@ async def caching(context: FunctionInvocationContext, next_handler):
 
 
 @function_middleware
-async def retry(context: FunctionInvocationContext, next_handler):
+async def retry(context: FunctionInvocationContext, next_handler) -> None:
     for attempt in range(3):
         try:
             await next_handler()

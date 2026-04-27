@@ -17,7 +17,8 @@ Supports web search (DuckDuckGo), GitHub search (gh CLI), and combined modes.
 - Type hints everywhere
 - Prefix interfaces/protocols with `I` if using protocols
 - Use `from __future__ import annotations` in every file
-- Use dataclasses for state/models, not Pydantic (keep it lightweight)
+- Use Pydantic v2 for models, settings, and validation
+- Use `pydantic-settings` for environment config (BaseSettings)
 - Async functions where MAF requires it
 - Use MAF native features: @tool, FunctionMiddleware, AgentMiddleware, FileCheckpointStorage, WorkflowBuilder, Executors
 - Don't reinvent what MAF provides natively

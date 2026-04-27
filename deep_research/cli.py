@@ -1,4 +1,5 @@
 """CLI entry point for deep-research."""
+
 from __future__ import annotations
 
 import click
