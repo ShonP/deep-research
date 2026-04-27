@@ -6,8 +6,7 @@ from deep_research.llm import chat
 
 SYSTEM_PROMPT = """\
 You are a research planner. Given a research query, produce a structured outline
-of topics and subtopics that should be investigated to comprehensively answer the
-query.
+of the MOST IMPORTANT topics to investigate. Prioritize depth over breadth.
 
 Respond with ONLY valid JSON (no markdown fences) in this format:
 {
@@ -15,38 +14,43 @@ Respond with ONLY valid JSON (no markdown fences) in this format:
     {
       "title": "Topic title",
       "description": "What to investigate",
-      "subtopics": ["subtopic 1", "subtopic 2"]
+      "priority": "high|medium",
+      "subtopics": ["subtopic 1"]
     }
   ]
 }
 
-Generate 3-4 topics. Each topic should have 1-2 subtopics. Ensure the outline
-covers the query from multiple angles (definition, techniques, examples,
-best practices, pitfalls, etc.).
+Rules:
+- Generate 3 topics maximum (the most important ones)
+- Each topic should have 0-1 subtopics (only if truly needed)
+- Total queries (topics + subtopics) MUST be 5 or fewer
+- Prioritize: what gives the most actionable insight?
+- Skip obvious/introductory topics — focus on what matters
 """
 
 
 GITHUB_OUTLINE_PROMPT = """\
 You are a research planner specializing in open-source software discovery. Given a
-research query, produce a structured outline of topics optimized for searching
-GitHub repositories, code patterns, and issue discussions.
+research query, produce a focused outline for searching GitHub.
 
 Respond with ONLY valid JSON (no markdown fences) in this format:
 {
   "topics": [
     {
       "title": "Topic title",
-      "description": "What to search for on GitHub — frame as code/repo search queries",
-      "subtopics": ["specific pattern to find", "alternative approach to search"]
+      "description": "What to search for on GitHub",
+      "priority": "high|medium",
+      "subtopics": ["specific pattern to find"]
     }
   ]
 }
 
-Generate 3-4 topics. Each topic should have at most 1-2 subtopics (keep it focused).
-Total research queries will be topics + subtopics, so aim for 8-10 total maximum.
-Frame descriptions as things to search for in code and repos,
-e.g. "Find repos implementing X", "Search for code patterns using Y library",
-"Look for issues discussing Z trade-offs".
+Rules:
+- Generate 3 topics maximum
+- Each topic should have 0-1 subtopics
+- Total queries (topics + subtopics) MUST be 5 or fewer
+- Focus on finding the BEST repos and code, not exhaustive coverage
+- Frame as: "Find repos implementing X", "Search code for Y pattern"
 """
 
 
