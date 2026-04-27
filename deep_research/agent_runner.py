@@ -185,12 +185,23 @@ def run_agent(
                 "content": tool_result,
             })
 
-        # Truncate old messages to prevent OOM
-        MAX_MESSAGES = 20
+        # Truncate old messages to prevent OOM while preserving assistant+tool pairs
+        MAX_MESSAGES = 30
         if len(messages) > MAX_MESSAGES:
-            truncated = len(messages) - MAX_MESSAGES
-            messages = messages[:2] + messages[-MAX_MESSAGES + 2:]
-            log.debug('Truncated %d old messages (keeping %d)', truncated, len(messages))
+            # Keep system + user (first 2), then keep the most recent messages
+            # but ensure we don't break assistant→tool pairs
+            keep_head = messages[:2]
+            tail = messages[2:]
+            # Find a safe cut point: start from where we want to cut
+            # and advance until we're not in the middle of a tool sequence
+            cut_target = len(tail) - (MAX_MESSAGES - 2)
+            cut = cut_target
+            while cut < len(tail) and tail[cut].get('role') == 'tool':
+                cut += 1  # don't start with orphaned tool messages
+            truncated = cut
+            messages = keep_head + tail[cut:]
+            if truncated > 0:
+                log.debug('Truncated %d old messages (keeping %d)', truncated, len(messages))
 
     # If we hit the iteration cap, ask for a summary
     log.warning("Agent hit iteration cap (%d), requesting summary", max_iterations)
