@@ -1,4 +1,5 @@
 """Report agent: compiles research findings into a structured markdown report."""
+
 from __future__ import annotations
 
 from agent_framework._agents import Agent
@@ -40,9 +41,7 @@ Include direct links, actual code snippets, and compare approaches.
 """
 
 
-async def generate_report(
-    query: str, findings_text: str, notes_text: str, source: str = "web"
-) -> str:
+async def generate_report(query: str, findings_text: str, notes_text: str, source: str = "web") -> str:
     system = GITHUB_REPORT_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
     agent = Agent(
         client=get_chat_client(),

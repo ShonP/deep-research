@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from deep_research.agents.compressor import compress_findings
 from deep_research.agents.critic import evaluate_research
 from deep_research.agents.github_research import github_research_topic

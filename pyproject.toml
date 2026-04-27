@@ -12,6 +12,8 @@ dependencies = [
     "trafilatura",
     "agent-framework>=1.2.0",
     "agent-framework-openai>=1.2.0",
+    "pydantic>=2.13.3",
+    "pydantic-settings>=2.14.0",
 ]
 
 [project.scripts]
@@ -20,3 +22,22 @@ deep-research = "deep_research.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.12",
+]

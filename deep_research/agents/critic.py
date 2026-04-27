@@ -1,4 +1,5 @@
 """Critic agent: evaluates research quality and identifies gaps."""
+
 from __future__ import annotations
 
 import json
@@ -37,12 +38,12 @@ Rules:
 
 
 async def evaluate_research(
-    query: str, findings: list[dict], source: str = "web",
+    query: str,
+    findings: list[dict],
+    source: str = "web",
 ) -> CriticFeedback:
     """Evaluate research quality and return structured feedback."""
-    findings_text = "\n\n".join(
-        f"### {f['topic']}\n{f['summary']}" for f in findings
-    )
+    findings_text = "\n\n".join(f"### {f['topic']}\n{f['summary']}" for f in findings)
     agent = Agent(
         client=get_chat_client(),
         name="research-critic",

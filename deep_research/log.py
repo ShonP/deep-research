@@ -1,10 +1,11 @@
 """Structured logging with colored console output and optional file handler."""
+
 from __future__ import annotations
 
 import logging
 import sys
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _run_id: ContextVar[str] = ContextVar("run_id", default="")
@@ -71,7 +72,7 @@ for noisy in ("httpx", "httpcore", "openai", "azure", "urllib3", "trafilatura"):
 
 def new_run_id() -> str:
     """Generate a short run ID from timestamp."""
-    rid = datetime.now(timezone.utc).strftime("%H%M%S")
+    rid = datetime.now(UTC).strftime("%H%M%S")
     _run_id.set(rid)
     return rid
 

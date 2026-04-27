@@ -1,4 +1,5 @@
 """Research loop executor: orchestrates multi-round research with parallel execution."""
+
 from __future__ import annotations
 
 import os
@@ -87,9 +88,13 @@ async def _refine_all(raw_queries: list[str], context: str) -> list[str]:
 def _merge_results(state: dict, results: list[dict]) -> None:
     """Merge parallel research results into state."""
     for r in results:
-        state["findings"].append({
-            "topic": r["topic"], "summary": r["summary"], "round": r["round"],
-        })
+        state["findings"].append(
+            {
+                "topic": r["topic"],
+                "summary": r["summary"],
+                "round": r["round"],
+            }
+        )
         state["raw_notes"].append(f"[round {r['round']}] {r['topic']}: {r['summary'][:200]}")
         for src in r.get("sources", []):
             state["sources"].append(src)

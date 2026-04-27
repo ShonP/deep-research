@@ -1,4 +1,5 @@
 """GitHub search tool using the gh CLI."""
+
 from __future__ import annotations
 
 import json
@@ -21,10 +22,15 @@ def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
 
     try:
         cmd = [
-            "gh", "api", endpoint,
-            "-X", "GET",
-            "-f", f"q={query}",
-            "-f", f"per_page={max_results}",
+            "gh",
+            "api",
+            endpoint,
+            "-X",
+            "GET",
+            "-f",
+            f"q={query}",
+            "-f",
+            f"per_page={max_results}",
         ]
         if mode == "code":
             cmd.extend(["-H", "Accept: application/vnd.github.text-match+json"])
@@ -68,9 +74,7 @@ def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
                     "body": (item.get("body") or "")[:300],
                     "url": item.get("html_url", ""),
                     "state": item.get("state", ""),
-                    "repo": item.get("repository_url", "").replace(
-                        "https://api.github.com/repos/", ""
-                    ),
+                    "repo": item.get("repository_url", "").replace("https://api.github.com/repos/", ""),
                 }
                 for item in items
             ]
@@ -78,11 +82,11 @@ def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
         return json.dumps({"results": formatted})
     except subprocess.TimeoutExpired:
         return json.dumps({"error": "GitHub search timed out"})
-    except Exception as e:
+    except (subprocess.CalledProcessError, json.JSONDecodeError, OSError) as e:
         return json.dumps({"error": str(e)})
 
 
-def _extract_code_snippet(item: dict) -> str:
+def _extract_code_snippet(item: dict[str, object]) -> str:
     """Extract text matches from a code search result."""
     matches = item.get("text_matches", [])
     if matches:

@@ -1,4 +1,5 @@
 """Start executor: generates the research outline."""
+
 from __future__ import annotations
 
 import json
@@ -25,16 +26,29 @@ class StartExecutor(Executor):
         rd = config.get("research_dir", "")
         if rd:
             save_json(os.path.join(rd, "outline.json"), {"topics": topics})
-        await ctx.send_message({
-            "query": query, "max_rounds": config.get("max_rounds", 3),
-            "current_round": 0, "source": source,
-            "output_path": config.get("output_path", "report.md"),
-            "research_dir": rd, "started_at": config.get("started_at", ""),
-            "topics": topics, "findings": [], "sources": [],
-            "gaps": [], "notes": [], "raw_notes": [], "compressed_notes": [],
-            "research_complete": False, "report": "",
-            "total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0,
-        })
+        await ctx.send_message(
+            {
+                "query": query,
+                "max_rounds": config.get("max_rounds", 3),
+                "current_round": 0,
+                "source": source,
+                "output_path": config.get("output_path", "report.md"),
+                "research_dir": rd,
+                "started_at": config.get("started_at", ""),
+                "topics": topics,
+                "findings": [],
+                "sources": [],
+                "gaps": [],
+                "notes": [],
+                "raw_notes": [],
+                "compressed_notes": [],
+                "research_complete": False,
+                "report": "",
+                "total_tokens": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+            }
+        )
 
 
 def _parse_outline(text: str) -> list[dict]:

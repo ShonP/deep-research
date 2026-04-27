@@ -1,4 +1,5 @@
 """Report executor: compresses findings and compiles the final report."""
+
 from __future__ import annotations
 
 from agent_framework._workflows._executor import Executor, handler
@@ -21,18 +22,20 @@ class ReportExecutor(Executor):
         state["compressed_notes"] = extra_notes
         log.info(
             "Compressed: %d → %d findings, %d cross-cutting notes",
-            len(findings), len(compressed), len(extra_notes),
+            len(findings),
+            len(compressed),
+            len(extra_notes),
         )
 
-        findings_text = "\n\n".join(
-            f"### {f['topic']}\n{f['summary']}" for f in compressed
-        )
-        raw_notes = state.get("raw_notes", [])
+        findings_text = "\n\n".join(f"### {f['topic']}\n{f['summary']}" for f in compressed)
         notes = state.get("notes", []) + extra_notes
         notes_text = "\n".join(f"- {n}" for n in notes) if notes else "(none)"
 
         report = await generate_report(
-            state["query"], findings_text, notes_text, state["source"],
+            state["query"],
+            findings_text,
+            notes_text,
+            state["source"],
         )
         state["report"] = report or "(report generation failed)"
         log.info("Report generated: %d chars", len(state["report"]))

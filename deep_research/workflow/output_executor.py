@@ -1,10 +1,10 @@
 """Output executor: saves report and artifacts to disk."""
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-
-from typing_extensions import Never
+from datetime import UTC, datetime
+from typing import Never
 
 from agent_framework._workflows._executor import Executor, handler
 from agent_framework._workflows._workflow_context import WorkflowContext
@@ -35,7 +35,7 @@ class OutputExecutor(Executor):
             meta = {
                 "query": state["query"],
                 "started_at": state.get("started_at", ""),
-                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "finished_at": datetime.now(UTC).isoformat(),
                 "max_rounds": state["max_rounds"],
                 "source": state["source"],
                 "topics_count": len(state.get("topics", [])),
@@ -54,11 +54,11 @@ def _log_token_summary() -> None:
     usage = get_token_usage()
     if usage.total_tokens == 0:
         return
-    est_cost = (
-        (usage.prompt_tokens / 1000) * COST_PER_1K_INPUT
-        + (usage.completion_tokens / 1000) * COST_PER_1K_OUTPUT
-    )
+    est_cost = (usage.prompt_tokens / 1000) * COST_PER_1K_INPUT + (usage.completion_tokens / 1000) * COST_PER_1K_OUTPUT
     log.info(
         "Token usage — prompt: %d, completion: %d, total: %d, est. cost: $%.4f",
-        usage.prompt_tokens, usage.completion_tokens, usage.total_tokens, est_cost,
+        usage.prompt_tokens,
+        usage.completion_tokens,
+        usage.total_tokens,
+        est_cost,
     )

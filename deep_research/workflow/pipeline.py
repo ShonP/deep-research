@@ -1,15 +1,16 @@
 """Workflow builder and entry point for the research pipeline."""
+
 from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from agent_framework._workflows._checkpoint import FileCheckpointStorage
 from agent_framework._workflows._edge import Case, Default
 from agent_framework._workflows._workflow_builder import WorkflowBuilder
 
-from deep_research.log import log, new_run_id, attach_file_handler, detach_file_handler
+from deep_research.log import attach_file_handler, detach_file_handler, log, new_run_id
 from deep_research.utils import create_research_dir, load_env
 from deep_research.workflow.output_executor import OutputExecutor
 from deep_research.workflow.report_executor import ReportExecutor
@@ -77,23 +78,27 @@ async def run_research_async(
         log.info("Starting deep research: %s", query)
         log.info(
             "Source: %s | Max rounds: %d | Run: %s",
-            source_label.get(source, source), max_rounds, run_id,
+            source_label.get(source, source),
+            max_rounds,
+            run_id,
         )
         log.info("Research artifacts: %s", research_dir)
 
         checkpoint_dir = os.path.join(research_dir, ".checkpoints")
         workflow = build_workflow(checkpoint_dir)
 
-        result = await workflow.run({
-            "query": query,
-            "config": {
-                "max_rounds": max_rounds,
-                "source": source,
-                "output_path": output_path,
-                "research_dir": research_dir,
-                "started_at": datetime.now(timezone.utc).isoformat(),
-            },
-        })
+        result = await workflow.run(
+            {
+                "query": query,
+                "config": {
+                    "max_rounds": max_rounds,
+                    "source": source,
+                    "output_path": output_path,
+                    "research_dir": research_dir,
+                    "started_at": datetime.now(UTC).isoformat(),
+                },
+            }
+        )
 
         outputs = result.get_outputs()
         if outputs:
@@ -117,11 +122,13 @@ def run_research(
     resume: str | None = None,
 ) -> None:
     """Synchronous wrapper for the async research pipeline."""
-    asyncio.run(run_research_async(
-        query,
-        max_rounds=max_rounds,
-        output_path=output_path,
-        research_base_dir=research_base_dir,
-        source=source,
-        resume=resume,
-    ))
+    asyncio.run(
+        run_research_async(
+            query,
+            max_rounds=max_rounds,
+            output_path=output_path,
+            research_base_dir=research_base_dir,
+            source=source,
+            resume=resume,
+        )
+    )
