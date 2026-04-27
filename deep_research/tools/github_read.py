@@ -5,7 +5,10 @@ import base64
 import json
 import subprocess
 
+from agent_framework._tools import tool
 
+
+@tool
 def github_read(repo: str, path: str, ref: str = "HEAD") -> str:
     """Fetch and return the content of a file from a GitHub repository."""
     try:

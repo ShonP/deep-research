@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 
+from agent_framework._tools import tool
 
+
+@tool
 def fetch_page(url: str) -> str:
     """Fetch a web page and extract its main text content."""
     import httpx

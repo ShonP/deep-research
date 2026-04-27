@@ -4,7 +4,10 @@ from __future__ import annotations
 import json
 import subprocess
 
+from agent_framework._tools import tool
 
+
+@tool
 def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
     """Search GitHub for code, repositories, or issues using the gh CLI."""
     endpoint_map = {

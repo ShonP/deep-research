@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 
+from agent_framework._tools import tool
 
+
+@tool
 def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return results as JSON."""
     from ddgs import DDGS
