@@ -1097,7 +1097,6 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "python-dotenv" },
     { name = "trafilatura" },
 ]
 
@@ -1115,7 +1114,6 @@ requires-dist = [
     { name = "httpx" },
     { name = "pydantic", specifier = ">=2.13.3" },
     { name = "pydantic-settings", specifier = ">=2.14.0" },
-    { name = "python-dotenv" },
     { name = "trafilatura" },
 ]
 

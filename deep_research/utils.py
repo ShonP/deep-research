@@ -6,21 +6,6 @@ import json
 import os
 import re
 from datetime import UTC, datetime
-from pathlib import Path
-
-
-def load_env() -> None:
-    """Load environment variables from .env file if it exists."""
-    from dotenv import load_dotenv
-
-    # Walk up from the package dir to find .env
-    pkg_dir = Path(__file__).resolve().parent
-    for candidate in [pkg_dir.parent / ".env", Path.cwd() / ".env"]:
-        if candidate.is_file():
-            load_dotenv(candidate)
-            return
-    # Still try default dotenv behavior
-    load_dotenv()
 
 
 def slugify(text: str, max_length: int = 50) -> str:
