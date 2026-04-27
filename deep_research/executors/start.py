@@ -18,12 +18,14 @@ class StartExecutor(Executor):
         max_rounds: int = 3,
         output_path: str = "report.md",
         research_base_dir: str = "reports",
+        source: str = "web",
     ):
         super().__init__(id="start")
         self._query = query
         self._max_rounds = max_rounds
         self._output_path = output_path
         self._research_base_dir = research_base_dir
+        self._source = source
 
     @handler(input=str, output=ResearchState)
     async def run(self, message, ctx) -> None:
@@ -33,11 +35,14 @@ class StartExecutor(Executor):
         state = ResearchState(
             query=self._query,
             max_rounds=self._max_rounds,
+            source=self._source,
             output_path=self._output_path,
             research_dir=research_dir,
             started_at=started_at,
         )
+        source_label = {"web": "🌐 Web", "github": "🐙 GitHub", "both": "🌐+🐙 Web & GitHub"}
         print(f"🔬 Starting deep research: {state.query}")
+        print(f"   Source: {source_label.get(state.source, state.source)}")
         print(f"   Max rounds: {state.max_rounds}")
         print(f"   Research artifacts: {research_dir}")
         await ctx.send_message(state)

@@ -32,7 +32,7 @@ class ReportExecutor(Executor):
             "Compile these findings into a comprehensive, well-structured markdown report. "
             "Include a Sources section at the end with all referenced URLs."
         )
-        agent = create_report_agent()
+        agent = create_report_agent(source=state.source)
         result = await agent.run(prompt, options={'timeout': 300})
         state.report = result.text or "(report generation failed)"
         print(f"   Report generated ({len(state.report)} characters)")
