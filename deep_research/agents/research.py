@@ -1,11 +1,7 @@
 """Research agent: investigates a topic using web search and page fetching."""
 from __future__ import annotations
 
-from agent_framework import Agent
-from agent_framework.github import GitHubCopilotAgent
-
-from deep_research.tools.search import web_search
-from deep_research.tools.fetch import fetch_page
+from deep_research.agent_runner import run_agent
 
 
 SYSTEM_PROMPT = """\
@@ -26,10 +22,18 @@ Write your summary as plain text (not JSON).
 """
 
 
-def create_research_agent() -> Agent:
-    """Create the web-research agent with search and fetch tools."""
-    return GitHubCopilotAgent(
-        name="ResearchAgent",
-        instructions=SYSTEM_PROMPT,
-        tools=[web_search, fetch_page],
+def research_topic(topic: str, query: str) -> str:
+    """Research a topic using web search and page fetching.
+
+    Returns the research summary as plain text.
+    """
+    prompt = (
+        f"Research the following topic thoroughly:\n\n{topic}\n\n"
+        f"Context — this is part of a larger research project on: {query}"
     )
+    return run_agent(
+        system_prompt=SYSTEM_PROMPT,
+        user_message=prompt,
+        tools=["web_search", "fetch_page"],
+    )
+

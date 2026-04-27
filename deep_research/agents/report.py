@@ -1,8 +1,7 @@
 """Report agent: compiles research findings into a structured markdown report."""
 from __future__ import annotations
 
-from agent_framework import Agent
-from agent_framework.github import GitHubCopilotAgent
+from deep_research.llm import chat
 
 
 SYSTEM_PROMPT = """\
@@ -51,15 +50,23 @@ Guidelines:
 """
 
 
-def create_report_agent(source: str = "web") -> Agent:
-    """Create the report-compilation agent.
+def generate_report(
+    query: str,
+    findings_text: str,
+    notes_text: str,
+    source: str = "web",
+) -> str:
+    """Compile research findings into a structured markdown report.
 
-    Args:
-        source: Research source mode — 'web', 'github', or 'both'.
-                Uses GitHub-optimized prompt for 'github' and 'both'.
+    Returns the report as markdown text.
     """
-    prompt = GITHUB_REPORT_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
-    return GitHubCopilotAgent(
-        name="ReportAgent",
-        instructions=prompt,
+    system = GITHUB_REPORT_PROMPT if source in ("github", "both") else SYSTEM_PROMPT
+    prompt = (
+        f"# Research Query\n{query}\n\n"
+        f"# Research Findings\n{findings_text}\n\n"
+        f"# Additional Notes\n{notes_text}\n\n"
+        "Compile these findings into a comprehensive, well-structured markdown report. "
+        "Include a Sources section at the end with all referenced URLs."
     )
+    return chat(system_prompt=system, user_message=prompt)
+

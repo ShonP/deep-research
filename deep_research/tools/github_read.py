@@ -4,17 +4,9 @@ from __future__ import annotations
 import base64
 import json
 import subprocess
-from typing import Annotated
-
-from agent_framework import tool
 
 
-@tool
-def github_read(
-    repo: Annotated[str, "Repository in owner/repo format"],
-    path: Annotated[str, "File path within the repository"],
-    ref: Annotated[str, "Branch or commit ref"] = "HEAD",
-) -> str:
+def github_read(repo: str, path: str, ref: str = "HEAD") -> str:
     """Fetch and return the content of a file from a GitHub repository."""
     try:
         result = subprocess.run(

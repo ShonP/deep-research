@@ -2,15 +2,9 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated
-
-from agent_framework import tool
 
 
-@tool
-def fetch_page(
-    url: Annotated[str, "The URL of the web page to fetch and extract text from"],
-) -> str:
+def fetch_page(url: str) -> str:
     """Fetch a web page and extract its main text content."""
     import httpx
     import trafilatura

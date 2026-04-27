@@ -1,11 +1,7 @@
 """GitHub research agent: investigates topics by searching GitHub repos, code, and issues."""
 from __future__ import annotations
 
-from agent_framework import Agent
-from agent_framework.github import GitHubCopilotAgent
-
-from deep_research.tools.github_search import github_search
-from deep_research.tools.github_read import github_read
+from deep_research.agent_runner import run_agent
 
 
 SYSTEM_PROMPT = """\
@@ -35,10 +31,18 @@ Write your summary as plain text (not JSON).
 """
 
 
-def create_github_research_agent() -> Agent:
-    """Create a GitHub-focused research agent with search and read tools."""
-    return GitHubCopilotAgent(
-        name="GitHubResearchAgent",
-        instructions=SYSTEM_PROMPT,
-        tools=[github_search, github_read],
+def github_research_topic(topic: str, query: str) -> str:
+    """Research a topic using GitHub search and file reading.
+
+    Returns the research summary as plain text.
+    """
+    prompt = (
+        f"Research the following topic thoroughly:\n\n{topic}\n\n"
+        f"Context — this is part of a larger research project on: {query}"
     )
+    return run_agent(
+        system_prompt=SYSTEM_PROMPT,
+        user_message=prompt,
+        tools=["github_search", "github_read"],
+    )
+

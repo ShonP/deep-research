@@ -1,12 +1,12 @@
 [project]
 name = "deep-research"
-version = "0.1.0"
-description = "Deep Research Agent — multi-round iterative web research powered by MAF"
+version = "0.2.0"
+description = "Deep Research Agent — multi-round iterative web research powered by OpenAI"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "agent-framework>=1.0.0,<2",
-    "agent-framework-github-copilot",
+    "openai>=1.0",
+    "python-dotenv",
     "click",
     "duckduckgo-search",
     "httpx",
