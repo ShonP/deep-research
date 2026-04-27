@@ -4,7 +4,12 @@ from __future__ import annotations
 from agent_framework._agents import Agent
 
 from deep_research.client import get_chat_client
-from deep_research.middleware import LoggingMiddleware, RetryMiddleware
+from deep_research.middleware import (
+    caching,
+    llm_call_logging,
+    retry,
+    tool_call_logging,
+)
 from deep_research.tools.github_read import github_read
 from deep_research.tools.github_search import github_search
 
@@ -31,16 +36,12 @@ Write your summary as plain text (not JSON).
 
 
 async def github_research_topic(topic: str, query: str) -> str:
-    """Research a topic using GitHub search and file reading.
-
-    Returns the research summary as plain text.
-    """
     agent = Agent(
         client=get_chat_client(),
-        name="github_researcher",
+        name="github-researcher",
         instructions=SYSTEM_PROMPT,
         tools=[github_search, github_read],
-        middleware=[LoggingMiddleware(), RetryMiddleware()],
+        middleware=[tool_call_logging, caching, retry, llm_call_logging],
     )
     prompt = (
         f"Research the following topic thoroughly:\n\n{topic}\n\n"
@@ -48,4 +49,3 @@ async def github_research_topic(topic: str, query: str) -> str:
     )
     response = await agent.run(prompt)
     return response.text
-

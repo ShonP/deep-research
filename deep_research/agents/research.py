@@ -4,7 +4,12 @@ from __future__ import annotations
 from agent_framework._agents import Agent
 
 from deep_research.client import get_chat_client
-from deep_research.middleware import LoggingMiddleware, RetryMiddleware
+from deep_research.middleware import (
+    caching,
+    llm_call_logging,
+    retry,
+    tool_call_logging,
+)
 from deep_research.tools.fetch import fetch_page
 from deep_research.tools.search import web_search
 
@@ -27,16 +32,12 @@ Write your summary as plain text (not JSON).
 
 
 async def research_topic(topic: str, query: str) -> str:
-    """Research a topic using web search and page fetching.
-
-    Returns the research summary as plain text.
-    """
     agent = Agent(
         client=get_chat_client(),
-        name="researcher",
+        name="web-researcher",
         instructions=SYSTEM_PROMPT,
         tools=[web_search, fetch_page],
-        middleware=[LoggingMiddleware(), RetryMiddleware()],
+        middleware=[tool_call_logging, caching, retry, llm_call_logging],
     )
     prompt = (
         f"Research the following topic thoroughly:\n\n{topic}\n\n"
@@ -44,4 +45,3 @@ async def research_topic(topic: str, query: str) -> str:
     )
     response = await agent.run(prompt)
     return response.text
-

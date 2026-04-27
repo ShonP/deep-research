@@ -40,6 +40,11 @@ def create_research_dir(query: str, base_dir: str = "reports") -> str:
     slug = slugify(query)
     dir_name = f"{date_str}-{slug}"
     full_path = os.path.join(base_dir, dir_name)
+    if os.path.exists(full_path):
+        counter = 1
+        while os.path.exists(f"{full_path}-{counter}"):
+            counter += 1
+        full_path = f"{full_path}-{counter}"
     os.makedirs(full_path, exist_ok=True)
     return full_path
 
