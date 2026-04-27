@@ -1,8 +1,12 @@
 """Research agent: investigates a topic using web search and page fetching."""
 from __future__ import annotations
 
-from deep_research.agent_runner import run_agent
+from agent_framework._agents import Agent
 
+from deep_research.client import get_chat_client
+from deep_research.middleware import LoggingMiddleware, RetryMiddleware
+from deep_research.tools.fetch import fetch_page
+from deep_research.tools.search import web_search
 
 SYSTEM_PROMPT = """\
 You are a thorough web researcher. You are given a research topic to investigate.
@@ -22,18 +26,22 @@ Write your summary as plain text (not JSON).
 """
 
 
-def research_topic(topic: str, query: str) -> str:
+async def research_topic(topic: str, query: str) -> str:
     """Research a topic using web search and page fetching.
 
     Returns the research summary as plain text.
     """
+    agent = Agent(
+        client=get_chat_client(),
+        name="researcher",
+        instructions=SYSTEM_PROMPT,
+        tools=[web_search, fetch_page],
+        middleware=[LoggingMiddleware(), RetryMiddleware()],
+    )
     prompt = (
         f"Research the following topic thoroughly:\n\n{topic}\n\n"
         f"Context — this is part of a larger research project on: {query}"
     )
-    return run_agent(
-        system_prompt=SYSTEM_PROMPT,
-        user_message=prompt,
-        tools=["web_search", "fetch_page"],
-    )
+    response = await agent.run(prompt)
+    return response.text
 

@@ -1,1 +1,1 @@
-"""Deep Research Agent — multi-round iterative web research powered by OpenAI."""
+"""Deep Research Agent — multi-round iterative research powered by MAF."""
