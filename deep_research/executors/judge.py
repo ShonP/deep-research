@@ -30,7 +30,9 @@ Respond with ONLY valid JSON (no markdown fences) in this format:
   ]
 }
 
-Generate 3-4 topics. Frame descriptions as things to search for in code and repos,
+Generate 3-4 topics. Each topic should have at most 1-2 subtopics (keep it focused).
+Total research queries will be topics + subtopics, so aim for 8-10 total maximum.
+Frame descriptions as things to search for in code and repos,
 e.g. "Find repos implementing X", "Search for code patterns using Y library",
 "Look for issues discussing Z trade-offs".
 """
