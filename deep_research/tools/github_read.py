@@ -37,8 +37,8 @@ def github_read(repo: str, path: str, ref: str = "HEAD") -> str:
             content = raw_content
 
         # Truncate to avoid exceeding context limits
-        if len(content) > 8000:
-            content = content[:8000] + "\n... [truncated]"
+        if len(content) > 4000:
+            content = content[:4000] + "\n... [truncated]"
 
         return json.dumps({
             "repo": repo,

@@ -7,9 +7,14 @@ from openai import OpenAI
 
 from deep_research.log import log
 
+_client: OpenAI | None = None
+
 
 def get_client() -> OpenAI:
-    """Create an OpenAI client configured from environment variables."""
+    """Return a cached OpenAI client configured from environment variables."""
+    global _client
+    if _client is not None:
+        return _client
     base_url = os.environ.get("OPENAI_BASE_URL")
     api_key = os.environ.get("AZURE_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
     if not base_url:
@@ -18,7 +23,8 @@ def get_client() -> OpenAI:
         )
     if not api_key:
         raise RuntimeError("AZURE_API_KEY or OPENAI_API_KEY must be set")
-    return OpenAI(base_url=base_url, api_key=api_key)
+    _client = OpenAI(base_url=base_url, api_key=api_key)
+    return _client
 
 
 def chat(
