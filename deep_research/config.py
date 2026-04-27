@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     openai_base_url: str = ""
     model: str = "gpt-5.5"
     max_rounds: int = 3
+    tavily_api_key: str = ""
+    searxng_url: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
