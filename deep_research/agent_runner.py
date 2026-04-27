@@ -129,10 +129,9 @@ def run_agent(
             "messages": messages,
             "tools": tool_defs,
         }
-        if model.startswith(("gpt-5", "o1", "o3", "o4")):
-            kwargs["reasoning_effort"] = reasoning_effort
-            kwargs["max_completion_tokens"] = 16384
-        else:
+        # reasoning_effort not supported with function tools on gpt-5.5
+        # Use temperature for tool-calling, reasoning_effort only for non-tool calls
+        if not model.startswith(("gpt-5", "o1", "o3", "o4")):
             kwargs["temperature"] = 0.7
         response = client.chat.completions.create(**kwargs)
         choice = response.choices[0]
@@ -192,9 +191,11 @@ def run_agent(
         "role": "user",
         "content": "Please provide your final summary based on the research so far.",
     })
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-    )
+    cap_kwargs: dict[str, Any] = {"model": model, "messages": messages}
+    if model.startswith(("gpt-5", "o1", "o3", "o4")):
+        cap_kwargs["reasoning_effort"] = reasoning_effort
+        cap_kwargs["max_completion_tokens"] = 16384
+    else:
+        cap_kwargs["temperature"] = 0.7
+    response = client.chat.completions.create(**cap_kwargs)
     return response.choices[0].message.content or ""
