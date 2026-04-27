@@ -98,7 +98,7 @@ def run_agent(
     tools: list[str],
     *,
     model: str = "gpt-5.5",
-    max_iterations: int = 15,
+    max_iterations: int = 10,
     reasoning_effort: str = "medium",
 ) -> str:
     """Run a tool-calling agent loop until the model produces a final text answer.
@@ -184,6 +184,13 @@ def run_agent(
                 "tool_call_id": tc.id,
                 "content": tool_result,
             })
+
+        # Truncate old messages to prevent OOM
+        MAX_MESSAGES = 20
+        if len(messages) > MAX_MESSAGES:
+            truncated = len(messages) - MAX_MESSAGES
+            messages = messages[:2] + messages[-MAX_MESSAGES + 2:]
+            log.debug('Truncated %d old messages (keeping %d)', truncated, len(messages))
 
     # If we hit the iteration cap, ask for a summary
     log.warning("Agent hit iteration cap (%d), requesting summary", max_iterations)

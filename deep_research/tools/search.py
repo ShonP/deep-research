@@ -6,7 +6,7 @@ import json
 
 def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return results as JSON."""
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     try:
         with DDGS() as ddgs:

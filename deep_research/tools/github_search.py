@@ -17,13 +17,16 @@ def github_search(query: str, mode: str = "code", max_results: int = 5) -> str:
         return json.dumps({"error": f"Invalid mode '{mode}'. Use code, repos, or issues."})
 
     try:
+        cmd = [
+            "gh", "api", endpoint,
+            "-X", "GET",
+            "-f", f"q={query}",
+            "-f", f"per_page={max_results}",
+        ]
+        if mode == "code":
+            cmd.extend(["-H", "Accept: application/vnd.github.text-match+json"])
         result = subprocess.run(
-            [
-                "gh", "api", endpoint,
-                "-X", "GET",
-                "-f", f"q={query}",
-                "-f", f"per_page={max_results}",
-            ],
+            cmd,
             capture_output=True,
             text=True,
             timeout=30,
