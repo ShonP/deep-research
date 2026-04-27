@@ -10,6 +10,7 @@ from deep_research.agents.research import research_topic
 from deep_research.agents.github_research import github_research_topic
 from deep_research.agents.report import generate_report
 from deep_research.llm import chat
+from deep_research.log import log, new_run_id, attach_file_handler, detach_file_handler
 from deep_research.models.state import Finding, ResearchState, ResearchTopic, SourceRecord
 from deep_research.utils import create_research_dir, extract_urls, load_env, save_json, save_text
 
@@ -24,8 +25,10 @@ def run_research(
 ) -> None:
     """Run the full research pipeline synchronously."""
     load_env()
+    run_id = new_run_id()
 
     research_dir = create_research_dir(query, research_base_dir)
+    attach_file_handler(research_dir)
     started_at = datetime.now(timezone.utc).isoformat()
 
     state = ResearchState(
@@ -38,44 +41,49 @@ def run_research(
     )
 
     source_label = {"web": "🌐 Web", "github": "🐙 GitHub", "both": "🌐+🐙 Web & GitHub"}
-    print(f"🔬 Starting deep research: {state.query}")
-    print(f"   Source: {source_label.get(state.source, state.source)}")
-    print(f"   Max rounds: {state.max_rounds}")
-    print(f"   Research artifacts: {research_dir}")
+    log.info("Starting deep research: %s", state.query)
+    log.info("Source: %s | Max rounds: %d | Run: %s", source_label.get(state.source, state.source), state.max_rounds, run_id)
+    log.info("Research artifacts: %s", research_dir)
 
-    # Step 1: Generate outline
-    _generate_outline(state)
-    _save_outline(state)
+    try:
+        # Step 1: Generate outline
+        _generate_outline(state)
+        _save_outline(state)
 
-    # Step 2: Iterative research loop
-    while state.current_round < state.max_rounds:
-        state.current_round += 1
-        print(f"\n📖 Research round {state.current_round}/{state.max_rounds}")
+        # Step 2: Iterative research loop
+        while state.current_round < state.max_rounds:
+            state.current_round += 1
+            log.info("Research round %d/%d", state.current_round, state.max_rounds)
 
-        topics = _get_topics_for_round(state)
-        if not topics:
-            print("   No topics to research, finishing.")
-            break
-
-        _research_topics(state, topics)
-        _save_findings(state)
-        _save_sources(state)
-
-        # Judge completeness (skip on last round)
-        if state.current_round < state.max_rounds:
-            has_gaps = _judge_completeness(state)
-            if not has_gaps:
-                print("   ✅ Research is comprehensive, moving to report.")
+            topics = _get_topics_for_round(state)
+            if not topics:
+                log.info("No topics to research, finishing.")
                 break
-            print(f"   🔄 Found {len(state.gaps)} gaps, continuing research...")
-        else:
-            print("   ⏹️  Max rounds reached, moving to report.")
 
-    # Step 3: Generate report
-    _compile_report(state)
+            _research_topics(state, topics)
+            _save_findings(state)
+            _save_sources(state)
 
-    # Step 4: Save output
-    _save_output(state)
+            # Judge completeness (skip on last round)
+            if state.current_round < state.max_rounds:
+                has_gaps = _judge_completeness(state)
+                if not has_gaps:
+                    log.info("Research is comprehensive, moving to report.")
+                    break
+                log.info("Found %d gaps, continuing research...", len(state.gaps))
+            else:
+                log.info("Max rounds reached, moving to report.")
+
+        # Step 3: Generate report
+        _compile_report(state)
+
+        # Step 4: Save output
+        _save_output(state)
+    except Exception:
+        log.exception("Research pipeline failed")
+        raise
+    finally:
+        detach_file_handler()
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +93,7 @@ def run_research(
 
 def _generate_outline(state: ResearchState) -> None:
     """Use the outline agent to create a research outline."""
-    print("\n📋 Generating research outline...")
+    log.info("Generating research outline...")
     text = generate_outline(state.query, state.source)
 
     # Strip markdown code fences if present
@@ -108,11 +116,13 @@ def _generate_outline(state: ResearchState) -> None:
                     subtopics=t.get("subtopics", []),
                 )
             )
-        print(f"   Created outline with {len(state.outline)} topics")
+        log.info("Outline created: %d topics", len(state.outline))
         for topic in state.outline:
-            print(f"   • {topic.title}")
+            subs = len(topic.subtopics)
+            log.debug("  • %s (%d subtopics)", topic.title, subs)
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"   ⚠️  Outline parsing failed ({e}), creating fallback")
+        log.warning("Outline parsing failed (%s), using fallback", e)
+        log.debug("Raw outline response: %s", text[:500])
         state.outline.append(
             ResearchTopic(
                 title=state.query,
@@ -138,15 +148,17 @@ def _get_topics_for_round(state: ResearchState) -> list[str]:
             topics.append(f"{t.title}: {t.description}")
             for sub in t.subtopics:
                 topics.append(f"{t.title} — {sub}")
+        log.debug("Round 1: %d research queries from outline", len(topics))
         return topics
     else:
+        log.debug("Round %d: %d gap-fill queries", state.current_round, len(state.gaps))
         return [f"Fill knowledge gap: {gap}" for gap in state.gaps]
 
 
 def _research_topics(state: ResearchState, topics: list[str]) -> None:
     """Run the appropriate research agent on each topic."""
     for i, topic in enumerate(topics, 1):
-        print(f"   🔍 [{i}/{len(topics)}] Researching: {topic[:80]}...")
+        log.info("[%d/%d] Researching: %s", i, len(topics), topic[:80])
 
         if state.source == "web":
             _run_research(state, topic, "web")
@@ -164,8 +176,8 @@ def _run_research(
     label: str = "",
 ) -> None:
     """Run a single research call and record findings."""
-    if label:
-        print(f"      [{label}]")
+    ctx = f"[{label}] " if label else ""
+    log.debug("%sStarting %s research for: %s", ctx, mode, topic[:60])
     try:
         if mode == "web":
             summary = research_topic(topic, state.query)
@@ -185,8 +197,9 @@ def _run_research(
             state.sources.append(
                 SourceRecord(url=url, title="", fetched_at=now, query=topic)
             )
+        log.debug("%sFinished research, %d chars, %d URLs found", ctx, len(summary), len(urls))
     except Exception as e:
-        print(f"   ⚠️  Research failed for topic: {e}")
+        log.error("Research failed for topic '%s': %s", topic[:60], e)
         state.findings.append(
             Finding(
                 topic=topic,
@@ -198,6 +211,7 @@ def _run_research(
 
 def _judge_completeness(state: ResearchState) -> bool:
     """Evaluate whether research is complete or has gaps."""
+    log.debug("Judging research completeness...")
     findings_text = "\n\n".join(
         f"### {f.topic}\n{f.summary}" for f in state.findings
     )
@@ -239,17 +253,20 @@ def _judge_completeness(state: ResearchState) -> bool:
         data = json.loads(text)
         if data.get("complete", True):
             state.gaps = []
+            log.debug("Judge: research complete")
             return False
         state.gaps = data.get("gaps", [])
+        log.debug("Judge: %d gaps found: %s", len(state.gaps), state.gaps)
         return len(state.gaps) > 0
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError) as e:
+        log.warning("Judge response parsing failed (%s), assuming complete", e)
         state.gaps = []
         return False
 
 
 def _compile_report(state: ResearchState) -> None:
     """Compile all findings into a final report."""
-    print("\n📝 Compiling research report...")
+    log.info("Compiling research report from %d findings...", len(state.findings))
     findings_text = "\n\n".join(
         f"### {f.topic}\n{f.summary}" for f in state.findings
     )
@@ -263,7 +280,9 @@ def _compile_report(state: ResearchState) -> None:
     )
     if not state.report:
         state.report = "(report generation failed)"
-    print(f"   Report generated ({len(state.report)} characters)")
+        log.error("Report generation returned empty")
+    else:
+        log.info("Report generated: %d characters", len(state.report))
 
 
 def _save_output(state: ResearchState) -> None:
@@ -271,7 +290,7 @@ def _save_output(state: ResearchState) -> None:
     path = state.output_path
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     save_text(path, state.report)
-    print(f"\n✅ Report written to {path}")
+    log.info("Report written to %s", path)
 
     if state.research_dir:
         report_path = os.path.join(state.research_dir, "report.md")
@@ -283,25 +302,23 @@ def _save_output(state: ResearchState) -> None:
             "started_at": state.started_at,
             "finished_at": finished_at,
             "max_rounds": state.max_rounds,
+            "source": state.source,
             "topics_count": len(state.outline),
             "findings_count": len(state.findings),
+            "sources_count": len(state.sources),
         }
         save_json(os.path.join(state.research_dir, "meta.json"), meta)
-        print(f"   All artifacts saved to: {state.research_dir}")
+        log.info("All artifacts saved to: %s", state.research_dir)
 
 
 def _save_outline(state: ResearchState) -> None:
-    """Save the outline data to outline.json."""
     if not state.research_dir:
         return
-    save_json(
-        os.path.join(state.research_dir, "outline.json"),
-        state.outline_data,
-    )
+    save_json(os.path.join(state.research_dir, "outline.json"), state.outline_data)
+    log.debug("Saved outline.json")
 
 
 def _save_findings(state: ResearchState) -> None:
-    """Save accumulated findings grouped by round to findings.json."""
     if not state.research_dir:
         return
     rounds: dict[int, list[dict]] = {}
@@ -322,10 +339,10 @@ def _save_findings(state: ResearchState) -> None:
         ]
     }
     save_json(os.path.join(state.research_dir, "findings.json"), data)
+    log.debug("Saved findings.json (%d findings)", len(state.findings))
 
 
 def _save_sources(state: ResearchState) -> None:
-    """Save all collected sources to sources.json."""
     if not state.research_dir:
         return
     seen: set[str] = set()
@@ -340,3 +357,4 @@ def _save_sources(state: ResearchState) -> None:
                 "query": s.query,
             })
     save_json(os.path.join(state.research_dir, "sources.json"), unique)
+    log.debug("Saved sources.json (%d unique sources)", len(unique))
