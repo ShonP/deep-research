@@ -5,12 +5,13 @@ description = "Deep Research Agent — multi-round iterative web research powere
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "openai>=1.0",
     "python-dotenv",
     "click",
     "ddgs",
     "httpx",
     "trafilatura",
+    "agent-framework>=1.2.0",
+    "agent-framework-openai>=1.2.0",
 ]
 
 [project.scripts]
