@@ -11,7 +11,7 @@ from agent_framework._workflows._edge import Case, Default
 from agent_framework._workflows._workflow_builder import WorkflowBuilder
 
 from deep_research.log import attach_file_handler, detach_file_handler, log, new_run_id
-from deep_research.utils import create_research_dir, load_env
+from deep_research.utils import create_research_dir
 from deep_research.workflow.output_executor import OutputExecutor
 from deep_research.workflow.report_executor import ReportExecutor
 from deep_research.workflow.research_executor import ResearchLoopExecutor
@@ -61,7 +61,6 @@ async def run_research_async(
     resume: str | None = None,
 ) -> None:
     """Run the full research pipeline asynchronously."""
-    load_env()
     run_id = new_run_id()
 
     if resume:

@@ -5,7 +5,6 @@ description = "Deep Research Agent — multi-round iterative web research powere
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "python-dotenv",
     "click",
     "ddgs",
     "httpx",
