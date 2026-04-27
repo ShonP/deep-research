@@ -168,6 +168,10 @@ def _research_topics(state: ResearchState, topics: list[str]) -> None:
             _run_research(state, topic, "web", label="web")
             _run_research(state, topic, "github", label="github")
 
+        # Save incrementally after each topic
+        _save_findings(state)
+        _save_sources(state)
+
 
 def _run_research(
     state: ResearchState,
