@@ -5,6 +5,7 @@ import json
 from typing import Any, Callable
 
 from deep_research.llm import get_client
+from deep_research.log import log
 from deep_research.tools.search import web_search
 from deep_research.tools.fetch import fetch_page
 from deep_research.tools.github_search import github_search
@@ -121,7 +122,8 @@ def run_agent(
         {"role": "user", "content": user_message},
     ]
 
-    for _ in range(max_iterations):
+    for iteration in range(max_iterations):
+        log.debug("Agent iteration %d/%d (%d messages)", iteration + 1, max_iterations, len(messages))
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -158,11 +160,13 @@ def run_agent(
 
         # If the model is done (no tool calls), return the text
         if not msg.tool_calls:
+            log.debug("Agent finished after %d iterations", iteration + 1)
             return msg.content or ""
 
         # Execute each tool call and append results
         for tc in msg.tool_calls:
             tool_name = tc.function.name
+            log.debug("Calling tool: %s", tool_name)
             tool_result: str
             try:
                 if tool_name not in TOOL_REGISTRY:
@@ -171,7 +175,9 @@ def run_agent(
                     args = json.loads(tc.function.arguments)
                     fn = TOOL_REGISTRY[tool_name]["function"]
                     tool_result = fn(**args)
+                    log.debug("Tool %s returned %d chars", tool_name, len(tool_result))
             except Exception as e:
+                log.warning("Tool %s failed: %s", tool_name, e)
                 tool_result = json.dumps({"error": f"Tool execution failed: {e}"})
 
             messages.append({
@@ -181,6 +187,7 @@ def run_agent(
             })
 
     # If we hit the iteration cap, ask for a summary
+    log.warning("Agent hit iteration cap (%d), requesting summary", max_iterations)
     messages.append({
         "role": "user",
         "content": "Please provide your final summary based on the research so far.",

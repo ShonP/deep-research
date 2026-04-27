@@ -5,6 +5,8 @@ import os
 
 from openai import OpenAI
 
+from deep_research.log import log
+
 
 def get_client() -> OpenAI:
     """Create an OpenAI client configured from environment variables."""
@@ -43,4 +45,8 @@ def chat(
     else:
         kwargs["temperature"] = temperature if temperature is not None else 0.7
     response = client.chat.completions.create(**kwargs)
+    usage = response.usage
+    if usage:
+        log.debug("LLM call: model=%s tokens=%d (prompt=%d, completion=%d)",
+                  model, usage.total_tokens, usage.prompt_tokens, usage.completion_tokens)
     return response.choices[0].message.content or ""
