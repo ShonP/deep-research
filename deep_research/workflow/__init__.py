@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from deep_research.workflow.pipeline import run_research
+from deep_research.workflow.pipeline import research_workflow, run_research
 
-__all__ = ["run_research"]
+__all__ = ["research_workflow", "run_research"]

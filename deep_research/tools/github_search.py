@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 
-from agent_framework._tools import tool
+from agent_framework import tool
 
 
 @tool

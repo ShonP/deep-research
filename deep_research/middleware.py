@@ -8,9 +8,7 @@ import json
 import time
 from typing import Any
 
-# Pre-import to avoid circular import in MAF 1.2.0
-import agent_framework._agents  # noqa: F401
-from agent_framework._middleware import (
+from agent_framework import (
     ChatContext,
     FunctionInvocationContext,
     chat_middleware,
