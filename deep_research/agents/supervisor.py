@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 
-from agent_framework._agents import Agent
+from agent_framework import Agent
 
 from deep_research.client import get_chat_client
 from deep_research.log import log

@@ -6,7 +6,7 @@ import base64
 import json
 import subprocess
 
-from agent_framework._tools import tool
+from agent_framework import tool
 
 
 @tool

@@ -5,7 +5,24 @@ from __future__ import annotations
 import click
 
 
-@click.command()
+class _ResearchGroup(click.Group):
+    """Custom group that treats bare invocation (no subcommand) as the research command."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if args and args[0] in self.commands:
+            return super().parse_args(ctx, args)
+        if not args or args == ["--help"]:
+            return super().parse_args(ctx, args)
+        args = ["research", *args]
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=_ResearchGroup)
+def main() -> None:
+    """Deep Research — multi-round iterative research with AI agents."""
+
+
+@main.command()
 @click.argument("query", required=False, default=None)
 @click.option(
     "--max-rounds",
@@ -40,16 +57,14 @@ import click
     type=click.Path(exists=True, file_okay=False, resolve_path=True),
     help="Resume from a previous research directory (path to the research dir).",
 )
-def main(query: str | None, max_rounds: int, output: str, research_dir: str, source: str, resume: str | None) -> None:
+def research(
+    query: str | None, max_rounds: int, output: str, research_dir: str, source: str, resume: str | None
+) -> None:
     """Run deep research on a QUERY topic.
-
-    Performs multi-round iterative research using AI agents and
-    produces a structured markdown report with citations.
 
     Example:
         deep-research 'How to create compelling manga' --max-rounds 3 -o report.md
         deep-research 'React state management' --source github
-        deep-research --resume reports/2025-01-15-my-topic
     """
     if not query and not resume:
         raise click.UsageError("Either QUERY argument or --resume option is required.")
@@ -66,6 +81,18 @@ def main(query: str | None, max_rounds: int, output: str, research_dir: str, sou
         source=source,
         resume=resume,
     )
+
+
+@main.command()
+@click.option("--port", "-p", default=8080, show_default=True, help="Port for DevUI server.")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host for DevUI server.")
+def devui(port: int, host: str) -> None:
+    """Launch the DevUI web interface for interactive testing."""
+    from agent_framework.devui import serve
+
+    from deep_research.workflow import research_workflow
+
+    serve(entities=[research_workflow], host=host, port=port, auto_open=True)
 
 
 if __name__ == "__main__":

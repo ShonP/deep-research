@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent_framework._agents import Agent
+from agent_framework import Agent
 
 from deep_research.client import get_chat_client
 from deep_research.middleware import llm_call_logging

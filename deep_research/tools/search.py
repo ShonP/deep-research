@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent_framework._tools import tool
+from agent_framework import tool
 
 from deep_research.config import get_settings
 from deep_research.log import log
