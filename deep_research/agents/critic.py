@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from agent_framework._agents import Agent
 
 from deep_research.client import get_chat_client
@@ -20,20 +18,11 @@ Check:
 3. Are the sources reliable and varied?
 4. Are there significant knowledge gaps remaining?
 
-Respond with ONLY valid JSON (no markdown fences):
-{
-  "quality_score": 0.0-1.0,
-  "complete": true/false,
-  "gaps": ["gap 1", "gap 2"],
-  "suggestions": ["suggestion 1"]
-}
-
 Rules:
 - quality_score: 0.0 = useless, 0.5 = adequate, 1.0 = excellent
 - complete: true only if quality_score >= 0.7 AND no critical gaps
-- gaps: specific knowledge gaps that need filling
+- gaps: specific knowledge gaps that need filling (max 3)
 - suggestions: actionable improvements for next round
-- Limit gaps to 3 most important ones
 """
 
 
@@ -56,23 +45,9 @@ async def evaluate_research(
         f"Research findings:\n{findings_text}\n\n"
         "Evaluate the quality and completeness of these findings."
     )
-    response = await agent.run(prompt)
-    return _parse_feedback(response.text)
-
-
-def _parse_feedback(text: str) -> CriticFeedback:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    try:
-        data = json.loads(text.strip())
-        return CriticFeedback(
-            quality_score=float(data.get("quality_score", 0.0)),
-            gaps=data.get("gaps", [])[:3],
-            suggestions=data.get("suggestions", []),
-            complete=data.get("complete", False),
-        )
-    except (json.JSONDecodeError, KeyError, ValueError):
-        return CriticFeedback(complete=True, quality_score=0.5)
+    response = await agent.run(prompt, options={"response_format": CriticFeedback})
+    if response.value:
+        feedback = response.value
+        feedback.gaps = feedback.gaps[:3]
+        return feedback
+    return CriticFeedback(complete=True, quality_score=0.5)
