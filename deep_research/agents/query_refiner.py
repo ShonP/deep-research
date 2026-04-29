@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
-
 from agent_framework._agents import Agent
 
 from deep_research.client import get_chat_client
 from deep_research.middleware import llm_call_logging
+from deep_research.models.state import RefinedQueries
 
 SYSTEM_PROMPT = """\
 You are a search query optimizer. Given a research topic and context, generate
@@ -18,9 +17,6 @@ Rules:
 - Use specific keywords, not vague phrases
 - Include technical terms when appropriate
 - Avoid redundancy between queries
-
-Respond with ONLY valid JSON (no markdown fences):
-{"queries": ["query 1", "query 2", "query 3"]}
 """
 
 
@@ -33,19 +29,8 @@ async def refine_queries(topic: str, context: str, max_queries: int = 3) -> list
         middleware=[llm_call_logging],
     )
     prompt = f"Research topic: {topic}\nBroader context: {context}\nGenerate {max_queries} optimized search queries."
-    response = await agent.run(prompt)
-    return _parse_queries(response.text, topic, max_queries)
-
-
-def _parse_queries(text: str, fallback_topic: str, max_queries: int) -> list[str]:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    try:
-        data = json.loads(text.strip())
-        queries = data.get("queries", [])
-        return queries[:max_queries] if queries else [fallback_topic]
-    except (json.JSONDecodeError, KeyError):
-        return [fallback_topic]
+    response = await agent.run(prompt, options={"response_format": RefinedQueries})
+    if response.value:
+        queries = response.value.queries[:max_queries]
+        return queries if queries else [topic]
+    return [topic]

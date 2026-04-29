@@ -85,6 +85,33 @@ class CriticFeedback(BaseModel):
         return self.model_dump()
 
 
+class OutlineResponse(BaseModel):
+    """Structured outline output from the outline agent."""
+
+    topics: list[ResearchTopic]
+
+
+class CompressedFinding(BaseModel):
+    """A single compressed finding."""
+
+    topic: str
+    summary: str
+    key_sources: list[str] = Field(default_factory=list)
+
+
+class CompressedFindings(BaseModel):
+    """Structured output from the compressor agent."""
+
+    compressed: list[CompressedFinding]
+    notes: list[str] = Field(default_factory=list)
+
+
+class RefinedQueries(BaseModel):
+    """Structured output from the query refiner agent."""
+
+    queries: list[str]
+
+
 class SourceRecord(BaseModel):
     """A URL encountered during research (legacy compat)."""
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 
 from agent_framework._workflows._executor import Executor, handler
@@ -21,7 +20,8 @@ class StartExecutor(Executor):
         query, config = message["query"], message.get("config", {})
         source = config.get("source", "web")
         log.info("Generating research outline...")
-        topics = _parse_outline(await generate_outline(query, source))
+        research_topics = await generate_outline(query, source)
+        topics = [t.model_dump() for t in research_topics]
         log.info("Outline created: %d topics", len(topics))
         rd = config.get("research_dir", "")
         if rd:
@@ -49,16 +49,3 @@ class StartExecutor(Executor):
                 "completion_tokens": 0,
             }
         )
-
-
-def _parse_outline(text: str) -> list[dict]:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    try:
-        return json.loads(text.strip()).get("topics", [])
-    except (json.JSONDecodeError, KeyError):
-        log.warning("Outline parsing failed, using fallback")
-        return [{"title": "General research", "description": "Research the query", "subtopics": []}]
