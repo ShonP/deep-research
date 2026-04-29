@@ -84,11 +84,6 @@ def research(
 
 
 @main.command()
-@click.option("--port", "-p", default=8080, show_default=True, help="Port for DevUI server.")
-@click.option("--host", default="127.0.0.1", show_default=True, help="Host for DevUI server.")
-def devui(port: int, host: str) -> None:
-    """Launch the DevUI web interface for interactive testing."""
-    from agent_framework.devui import serve
 
     from deep_research.workflow import research_workflow
 
