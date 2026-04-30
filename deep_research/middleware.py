@@ -104,7 +104,14 @@ async def tool_call_logging(context: FunctionInvocationContext, next_handler) ->
         log.error("Tool %s FAILED after %.0fms: %s", context.function.name, elapsed, e)
         raise
     elapsed = (time.monotonic() - start) * 1000
-    result_str = str(context.result) if context.result is not None else ""
+    raw_result = context.result
+    if hasattr(raw_result, 'text'):
+        result_str = raw_result.text or ''
+    elif isinstance(raw_result, str):
+        result_str = raw_result
+    else:
+        result_str = str(raw_result) if raw_result is not None else ''
+
     log.info("Tool %s returned %d chars in %.0fms", context.function.name, len(result_str), elapsed)
 
 
