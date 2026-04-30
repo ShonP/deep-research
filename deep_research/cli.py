@@ -83,12 +83,5 @@ def research(
     )
 
 
-@main.command()
-
-    from deep_research.workflow import research_workflow
-
-    serve(entities=[research_workflow], host=host, port=port, auto_open=True)
-
-
 if __name__ == "__main__":
     main()
