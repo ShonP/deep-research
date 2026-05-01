@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     searxng_url: str = ""
     reddit_client_id: str = ""
     reddit_client_secret: str = ""
+    azure_whisper_endpoint: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

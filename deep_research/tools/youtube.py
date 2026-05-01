@@ -111,10 +111,10 @@ def _whisper_transcribe(video_id: str) -> str | None:
 
         # Send to Azure Whisper
         try:
-            endpoint = (
-                "https://kustoassistant.cognitiveservices.azure.com"
-                "/openai/deployments/whisper/audio/translations?api-version=2024-06-01"
-            )
+            endpoint = settings.azure_whisper_endpoint
+            if not endpoint:
+                log.warning("AZURE_WHISPER_ENDPOINT not configured")
+                return None
             with open(audio_path, "rb") as f:
                 resp = httpx.post(
                     endpoint,
