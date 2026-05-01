@@ -52,13 +52,18 @@ def main() -> None:
     help="Research source: web search, GitHub search, or both.",
 )
 @click.option(
+    "--providers",
+    default=None,
+    help="Comma-separated list of extra providers to enable (e.g. youtube,reddit,hackernews,rss,github-trending). Default: web+github only.",
+)
+@click.option(
     "--resume",
     default=None,
     type=click.Path(exists=True, file_okay=False, resolve_path=True),
     help="Resume from a previous research directory (path to the research dir).",
 )
 def research(
-    query: str | None, max_rounds: int, output: str, research_dir: str, source: str, resume: str | None
+    query: str | None, max_rounds: int, output: str, research_dir: str, source: str, resume: str | None, providers: str | None
 ) -> None:
     """Run deep research on a QUERY topic.
 
@@ -73,6 +78,9 @@ def research(
 
     from deep_research.workflow import run_research
 
+    # Parse providers
+    extra_providers = [p.strip() for p in providers.split(",")] if providers else []
+
     run_research(
         query,
         max_rounds=max_rounds,
@@ -80,6 +88,7 @@ def research(
         research_base_dir=research_dir,
         source=source,
         resume=resume,
+        extra_providers=extra_providers,
     )
 
 

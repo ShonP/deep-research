@@ -67,6 +67,7 @@ async def run_research_async(
     research_base_dir: str = "reports",
     source: str = "web",
     resume: str | None = None,
+    extra_providers: list[str] | None = None,
 ) -> None:
     """Run the full research pipeline asynchronously."""
     run_id = new_run_id()
@@ -79,6 +80,11 @@ async def run_research_async(
 
     research_dir = create_research_dir(query, research_base_dir)
     attach_file_handler(research_dir)
+
+    # Register extra providers if requested
+    if extra_providers:
+        from deep_research.tools.registry import register_extra_providers
+        register_extra_providers(extra_providers)
 
     try:
         source_label = {"web": "🌐 Web", "github": "🐙 GitHub", "both": "🌐+🐙 Web & GitHub"}
@@ -126,6 +132,7 @@ def run_research(
     research_base_dir: str = "reports",
     source: str = "web",
     resume: str | None = None,
+    extra_providers: list[str] | None = None,
 ) -> None:
     """Synchronous wrapper for the async research pipeline."""
     asyncio.run(
@@ -136,5 +143,6 @@ def run_research(
             research_base_dir=research_base_dir,
             source=source,
             resume=resume,
+            extra_providers=extra_providers,
         )
     )
