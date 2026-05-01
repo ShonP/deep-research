@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from agent_framework import Agent
 
+import deep_research.tools as _  # noqa: F401 — trigger provider registration
 from deep_research.client import get_chat_client
 from deep_research.log import log
 from deep_research.middleware import (
@@ -18,8 +19,6 @@ from deep_research.middleware import (
 from deep_research.tools.provider import SearchProvider
 from deep_research.tools.registry import get_providers
 from deep_research.utils import extract_urls
-
-import deep_research.tools as _  # noqa: F401 — trigger provider registration
 
 MAX_CONCURRENCY = 3
 
