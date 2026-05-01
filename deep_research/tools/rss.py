@@ -13,7 +13,10 @@ from deep_research.log import log
 
 @tool
 def fetch_rss(url: str, max_items: int = 10) -> str:
-    """Fetch and parse an RSS or Atom feed, returning structured entries."""
+    """Fetch and parse an RSS or Atom feed. Do NOT use for YouTube/GitHub search — use proper tools."""
+    # Reject known-bad patterns
+    if any(p in url for p in ["youtube.com/feeds/videos.xml?search_query", "github.com/search.atom"]):
+        return json.dumps({"error": "Not a valid RSS feed. Use youtube_search or github_search.", "entries": []})
     try:
         resp = httpx.get(url, timeout=15, follow_redirects=True)
         resp.raise_for_status()
