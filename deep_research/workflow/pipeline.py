@@ -113,10 +113,13 @@ async def run_research_async(
             checkpoint_storage=storage,
         )
 
-        if result.text:
+        outputs = result.get_outputs() if hasattr(result, 'get_outputs') else []
+        if outputs:
+            log.info("Research complete! %d outputs", len(outputs))
+        elif hasattr(result, 'text') and result.text:
             log.info("Research complete! Report: %d chars", len(result.text))
         else:
-            log.warning("No outputs from workflow")
+            log.info("Research complete!")
     except Exception:
         log.exception("Research pipeline failed")
         raise
