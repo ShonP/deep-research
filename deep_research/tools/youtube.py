@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 
 import httpx
-
 from agent_framework import tool
 
 from deep_research.config import get_settings
@@ -93,13 +92,13 @@ def _whisper_transcribe(video_id: str) -> str | None:
     """Download audio with yt-dlp and transcribe with Azure Whisper."""
     settings = get_settings()
 
-    # Download audio
+    # Download audio as mp3 (smaller than m4a/wav)
     with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = Path(tmpdir) / "audio.m4a"
+        audio_path = Path(tmpdir) / "audio.mp3"
         try:
             proc = subprocess.run(
-                ["yt-dlp", "-x", "--audio-format", "m4a", "-o", str(audio_path),
-                 f"https://youtube.com/watch?v={video_id}"],
+                ["yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "5",
+                 "-o", str(audio_path), f"https://youtube.com/watch?v={video_id}"],
                 capture_output=True, text=True, timeout=120,
             )
             if proc.returncode != 0 or not audio_path.exists():
@@ -109,17 +108,24 @@ def _whisper_transcribe(video_id: str) -> str | None:
             log.warning("yt-dlp not available or timed out")
             return None
 
-        # Send to Azure Whisper
+        endpoint = settings.azure_whisper_endpoint
+        if not endpoint:
+            log.warning("AZURE_WHISPER_ENDPOINT not configured")
+            return None
+
+        file_size = audio_path.stat().st_size
+        log.info("Audio downloaded: %s (%.1f MB)", audio_path, file_size / 1e6)
+
+        # Whisper limit: 25MB. If larger, split into chunks with ffmpeg
+        if file_size > 24 * 1024 * 1024:
+            return _whisper_chunked(audio_path, endpoint, settings.azure_api_key, video_id)
+
         try:
-            endpoint = settings.azure_whisper_endpoint
-            if not endpoint:
-                log.warning("AZURE_WHISPER_ENDPOINT not configured")
-                return None
             with open(audio_path, "rb") as f:
                 resp = httpx.post(
                     endpoint,
                     headers={"api-key": settings.azure_api_key},
-                    files={"file": ("audio.m4a", f, "audio/m4a")},
+                    files={"file": ("audio.mp3", f, "audio/mpeg")},
                     timeout=300,
                 )
             resp.raise_for_status()
@@ -134,3 +140,53 @@ def _whisper_transcribe(video_id: str) -> str | None:
         except Exception as e:
             log.warning("Whisper failed for %s: %s", video_id, e)
             return None
+
+
+def _whisper_chunked(audio_path: Path, endpoint: str, api_key: str, video_id: str) -> str | None:
+    """Split audio into <25MB chunks with ffmpeg and transcribe each."""
+    chunk_dir = audio_path.parent / "chunks"
+    chunk_dir.mkdir(exist_ok=True)
+
+    # Split into 10-minute segments (well under 25MB for mp3)
+    try:
+        proc = subprocess.run(
+            ["ffmpeg", "-i", str(audio_path), "-f", "segment", "-segment_time", "600",
+             "-c", "copy", str(chunk_dir / "chunk_%03d.mp3")],
+            capture_output=True, text=True, timeout=120,
+        )
+        if proc.returncode != 0:
+            log.warning("ffmpeg split failed: %s", proc.stderr[:200])
+            return None
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        log.warning("ffmpeg not available")
+        return None
+
+    chunks = sorted(chunk_dir.glob("chunk_*.mp3"))
+    log.info("Split into %d chunks for Whisper", len(chunks))
+
+    all_text = []
+    for chunk in chunks:
+        try:
+            with open(chunk, "rb") as f:
+                resp = httpx.post(
+                    endpoint,
+                    headers={"api-key": api_key},
+                    files={"file": (chunk.name, f, "audio/mpeg")},
+                    timeout=300,
+                )
+            resp.raise_for_status()
+            text = resp.json().get("text", "")
+            all_text.append(text)
+            log.debug("Chunk %s: %d chars", chunk.name, len(text))
+        except Exception as e:
+            log.warning("Whisper chunk %s failed: %s", chunk.name, e)
+
+    combined = " ".join(all_text)
+    log.info("Whisper chunked transcription %s: %d chars from %d chunks", video_id, len(combined), len(chunks))
+    return json.dumps({
+        "video_id": video_id,
+        "source": "whisper-chunked",
+        "text": combined[:15000],
+        "total_chars": len(combined),
+        "chunks": len(chunks),
+    })
