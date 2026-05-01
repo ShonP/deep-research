@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings>=2.14.0",
     "tavily-python>=0.7.24",
     "feedparser>=6.0.12",
+    "youtube-transcript-api>=1.2.4",
 ]
 
 [project.scripts]
