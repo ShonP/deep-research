@@ -91,6 +91,20 @@ class OutlineResponse(BaseModel):
     topics: list[ResearchTopic]
 
 
+class ResearchGap(BaseModel):
+    """A single gap identified in an existing research report."""
+
+    topic: str
+    question: str
+    reason: str
+
+
+class GapAnalysisResponse(BaseModel):
+    """Structured output from the gap analysis agent."""
+
+    gaps: list[ResearchGap]
+
+
 class CompressedFinding(BaseModel):
     """A single compressed finding."""
 

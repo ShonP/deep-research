@@ -94,3 +94,35 @@ def research(
 
 if __name__ == "__main__":
     main()
+
+
+@main.command()
+@click.argument("report_path", type=click.Path(exists=True, resolve_path=True))
+@click.option("--max-rounds", default=2, type=int, show_default=True, help="Maximum research rounds for gaps.")
+@click.option(
+    "--source",
+    type=click.Choice(["web", "github", "both"]),
+    default="web",
+    show_default=True,
+    help="Research source for gap investigation.",
+)
+@click.option("--providers", default=None, help="Comma-separated list of extra providers.")
+@click.option("--research-dir", default="reports", show_default=True, help="Base directory for research artifacts.")
+def deepen(report_path: str, max_rounds: int, source: str, providers: str | None, research_dir: str) -> None:
+    """Deepen an existing research report by finding and filling gaps.
+
+    Example:
+        deep-research deepen reports/2d-roguelike-godot.md
+        deep-research deepen reports/my-report.md --max-rounds 3 --providers youtube,reddit
+    """
+    from deep_research.workflow import run_deepen
+
+    extra_providers = [p.strip() for p in providers.split(",")] if providers else []
+
+    run_deepen(
+        report_path,
+        max_rounds=max_rounds,
+        source=source,
+        extra_providers=extra_providers,
+        research_base_dir=research_dir,
+    )
