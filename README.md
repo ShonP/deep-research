@@ -32,47 +32,48 @@ All agents that return structured data use MAF's native `response_format` with P
 
 ```mermaid
 flowchart TD
-    CLI[CLI<br/>cli.py] --> WF[MAF Workflow<br/>pipeline.py]
+    CLI["CLI (cli.py)"] --> WF["MAF Workflow (pipeline.py)"]
 
     WF --> S1[step_outline]
     WF --> S2[step_research]
     WF --> S3[step_report]
     WF --> S4[step_output]
 
-    S1 --> OUT[Outline Agent<br/>structured: OutlineResponse]
+    S1 --> OUT["Outline Agent<br/>OutlineResponse"]
 
-    S2 --> QR[Query Refiner<br/>structured: RefinedQueries]
-    QR --> SUP[Supervisor<br/>parallel dispatch]
-    SUP --> R1[Researcher Agent #1]
-    SUP --> R2[Researcher Agent #2]
-    SUP --> R3[Researcher Agent #N]
-    R1 & R2 & R3 --> CR[Critic Agent<br/>structured: CriticFeedback]
-    CR -- gaps remain --> QR
-    CR -- complete or max rounds --> S3
+    S2 --> QR["Query Refiner<br/>RefinedQueries"]
+    QR --> SUP["Supervisor<br/>parallel dispatch"]
+    SUP --> R1["Researcher 1"]
+    SUP --> R2["Researcher 2"]
+    SUP --> RN["Researcher N"]
+    R1 --> CR["Critic Agent<br/>CriticFeedback"]
+    R2 --> CR
+    RN --> CR
+    CR -- "gaps remain" --> QR
+    CR -- "complete or max rounds" --> S3
 
-    S3 --> CMP[Compressor Agent<br/>structured: CompressedFindings]
-    CMP --> RPT[Report Agent<br/>final markdown]
+    S3 --> CMP["Compressor Agent<br/>CompressedFindings"]
+    CMP --> RPT["Report Agent<br/>final markdown"]
     RPT --> S4
 
-    SUP -. uses .-> REG[(Provider Registry)]
-    REG --> WP[WebSearchProvider<br/>Tavily → DDG → SearXNG + fetch]
-    REG --> GP[GitHubSearchProvider<br/>gh CLI: repos / code / issues]
+    SUP -. uses .-> REG[("Provider Registry")]
+    REG --> WP["WebSearchProvider<br/>Tavily, DDG, SearXNG + fetch"]
+    REG --> GP["GitHubSearchProvider<br/>gh CLI: repos, code, issues"]
 
-    R1 & R2 & R3 -. tools .-> WP
-    R1 & R2 & R3 -. tools .-> GP
+    R1 -. tools .-> WP
+    R2 -. tools .-> WP
+    RN -. tools .-> GP
 
-    WF -. checkpoints .-> CK[(FileCheckpointStorage<br/>.checkpoints/)]
-    S4 --> ART[(Run artifacts<br/>report.md, outline.json,<br/>findings.json, sources.json,<br/>meta.json, run.log)]
+    WF -. checkpoints .-> CK[("FileCheckpointStorage<br/>.checkpoints/")]
+    S4 --> ART[("Run artifacts<br/>report.md, outline.json,<br/>findings.json, sources.json,<br/>meta.json, run.log")]
 
-    subgraph MW [MAF Middleware]
+    subgraph MW ["MAF Middleware (wraps all agents)"]
         MW1[Token tracking]
         MW2[LLM call logging]
         MW3[Tool call logging]
         MW4[Caching]
-        MW5[Retry w/ backoff]
+        MW5[Retry with backoff]
     end
-
-    OUT & QR & R1 & R2 & R3 & CR & CMP & RPT -. wrapped by .-> MW
 ```
 
 ### Search Providers
